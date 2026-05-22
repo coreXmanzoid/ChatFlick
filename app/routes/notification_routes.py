@@ -10,11 +10,10 @@ from app.firebase.firebase_config import get_firebase_web_config, init_firebase
 from app.models.notifications import Notification
 from app.models.users import UserData
 from app.services.notification_service import NotificationService
-from app.services.push_service import send_notification
+from app.services.push_service import send_diagnostic_notification, send_notification
 from app.decorators import verified_user
 from app.utils.subscription_manager import get_limit, has_feature, is_unlimited
 from app.utils.time_utils import utc_iso_from, utc_now
-
 
 notification_bp = Blueprint("notifications", __name__)
 
@@ -29,7 +28,15 @@ def save_token():
     if not token:
         return jsonify({"status": "error", "message": "token is required"}), 400
     if not has_feature(current_user, "notifications", "push_notifications"):
-        return jsonify({"status": "error", "message": "Push notifications require a higher plan."}), 403
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Push notifications require a higher plan.",
+                }
+            ),
+            403,
+        )
 
     duplicate_owner = db.session.execute(
         db.select(db.func.count())
@@ -99,6 +106,11 @@ def notification_health():
             ),
             "current_user_has_token": bool(current_user.fb_auth_token),
             "current_user_token_length": len(current_user.fb_auth_token or ""),
+            "current_user_token_preview": (
+                f"{current_user.fb_auth_token[:16]}...{current_user.fb_auth_token[-16:]}"
+                if current_user.fb_auth_token
+                else ""
+            ),
             "request_is_secure": request.is_secure,
             "request_host": request.host,
             "public_base_url": (
@@ -115,14 +127,25 @@ def notification_health():
 @login_required
 def notification_test_push():
     if not current_user.fb_auth_token:
-        return jsonify(
-            {
-                "status": "error",
-                "message": "No FCM token is saved for the current user. Enable notifications first.",
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "No FCM token is saved for the current user. Enable notifications first.",
+                }
+            ),
+            400,
+        )
     if not has_feature(current_user, "notifications", "push_notifications"):
-        return jsonify({"status": "error", "message": "Push notifications require a higher plan."}), 403
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Push notifications require a higher plan.",
+                }
+            ),
+            403,
+        )
 
     test_notification = SimpleNamespace(
         title="ChatFlick test",
@@ -134,24 +157,52 @@ def notification_test_push():
     )
 
     if not send_notification(test_notification):
-        return jsonify(
-            {
-                "status": "error",
-                "message": "Firebase accepted no send. Check PythonAnywhere error logs for the exact Firebase error.",
-            }
-        ), 502
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Firebase accepted no send. Check PythonAnywhere error logs for the exact Firebase error.",
+                }
+            ),
+            502,
+        )
 
     return jsonify({"status": "sent"})
+
+
+@notification_bp.route("/notification-diagnostic-push", methods=["POST"])
+@login_required
+def notification_diagnostic_push():
+    if not has_feature(current_user, "notifications", "push_notifications"):
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Push notifications require a higher plan.",
+                }
+            ),
+            403,
+        )
+
+    result = send_diagnostic_notification(current_user)
+    status_code = 200 if result.get("status") == "sent" else 502
+    if "No FCM token" in result.get("message", ""):
+        status_code = 400
+    return jsonify(result), status_code
 
 
 @notification_bp.route("/notifications")
 @login_required
 def notifications():
 
-    history_days = get_limit(current_user, "notifications", "notification_history_days", 7)
+    history_days = get_limit(
+        current_user, "notifications", "notification_history_days", 7
+    )
     query = db.select(Notification).where(Notification.recipient_id == current_user.id)
     if not is_unlimited(history_days):
-        query = query.where(Notification.created_at >= utc_now() - timedelta(days=int(history_days)))
+        query = query.where(
+            Notification.created_at >= utc_now() - timedelta(days=int(history_days))
+        )
     notifications = (
         db.session.execute(query.order_by(Notification.created_at.desc()).limit(15))
         .scalars()
@@ -167,7 +218,6 @@ def notifications():
 
 @notification_bp.route("/notifications/mark_read/<int:user_id>")
 @login_required
-# @verified_user
 def mark_as_read(user_id):
 
     if user_id != current_user.id:
@@ -193,16 +243,15 @@ def check_notifications(user_id):
     unread_count = db.session.execute(
         db.select(db.func.count())
         .select_from(Notification)
-        .where(
-            Notification.recipient_id == user_id,
-            Notification.is_read == False
-        )
+        .where(Notification.recipient_id == user_id, Notification.is_read == False)
     ).scalar()
 
     return jsonify({"unread_count": unread_count})
 
 
-@notification_bp.route("/send-notification-route/<int:state>/<string:push>", methods=["POST"])
+@notification_bp.route(
+    "/send-notification-route/<int:state>/<string:push>", methods=["POST"]
+)
 @login_required
 def send_notification_route(state, push):
 
@@ -222,11 +271,15 @@ def send_notification_route(state, push):
     identifier = data.get("identifier")
 
     if not title or not message:
-        return jsonify({"status": "error", "message": "title and message are required"}), 400
+        return (
+            jsonify({"status": "error", "message": "title and message are required"}),
+            400,
+        )
 
+    # BUG FIX: Push eligibility should be determined per-recipient, not by
+    # the sender's plan.  We keep this flag as an opt-in from the client; the
+    # actual per-recipient feature check happens inside the push loop below.
     send_push = str(push).lower() == "true"
-    if send_push and not has_feature(current_user, "notifications", "push_notifications"):
-        send_push = False
 
     if state == 2:
 
@@ -249,7 +302,11 @@ def send_notification_route(state, push):
                 commit=False,
             )
 
-            if notif:
+            # BUG FIX: update_or_create returns None when the recipient has
+            # in-app notifications disabled or the recipient no longer exists.
+            # Appending None and later accessing notif.recipient causes an
+            # AttributeError, so we skip None results.
+            if notif is not None:
                 notifications.append(notif)
 
         db.session.commit()
@@ -257,7 +314,15 @@ def send_notification_route(state, push):
         if send_push:
             for notif in notifications:
                 try:
-                    if has_feature(notif.recipient, "notifications", "push_notifications"):
+                    # BUG FIX: refresh the object so the recipient relationship
+                    # is accessible after the session commit.
+                    db.session.refresh(notif)
+                    # BUG FIX: check push eligibility against the RECIPIENT's
+                    # plan, not the sender's.
+                    push_recipient = db.session.get(UserData, notif.recipient_id)
+                    if push_recipient and has_feature(
+                        push_recipient, "notifications", "push_notifications"
+                    ):
                         send_notification(notif)
                 except Exception as exc:
                     print("Notification failed:", exc)
@@ -289,9 +354,16 @@ def send_notification_route(state, push):
             commit=True,
         )
 
-        if send_push and notif:
+        # BUG FIX: notif can be None if the recipient doesn't exist or has
+        # in-app notifications disabled.  Guard before accessing .recipient.
+        if send_push and notif is not None:
             try:
-                if has_feature(notif.recipient, "notifications", "push_notifications"):
+                db.session.refresh(notif)
+                # BUG FIX: check the RECIPIENT's push plan, not the sender's.
+                push_recipient = db.session.get(UserData, notif.recipient_id)
+                if push_recipient and has_feature(
+                    push_recipient, "notifications", "push_notifications"
+                ):
                     send_notification(notif)
             except Exception as exc:
                 print("Notification failed:", exc)

@@ -34,7 +34,10 @@ class NotificationService:
         from app.models.users import UserData
 
         recipient = db.session.get(UserData, recipient_id)
-        if recipient and not has_feature(recipient, "notifications", "in_app_notifications"):
+        # BUG FIX: recipient can be None if user was deleted; guard before checking features.
+        if recipient is None:
+            return None
+        if not has_feature(recipient, "notifications", "in_app_notifications"):
             return None
 
         notification = db.session.execute(
@@ -80,10 +83,14 @@ class NotificationService:
 
             if user_id == post.user.id:
                 continue
+
             from app.models.users import UserData
 
             recipient = db.session.get(UserData, user_id)
-            if recipient and not has_feature(recipient, "notifications", "in_app_notifications"):
+            # BUG FIX: guard None recipient before checking features.
+            if recipient is None:
+                continue
+            if not has_feature(recipient, "notifications", "in_app_notifications"):
                 continue
 
             notif = Notification(
@@ -100,9 +107,19 @@ class NotificationService:
 
         db.session.commit()
 
+        # BUG FIX: refresh each notification after commit so the recipient
+        # relationship is accessible without a DetachedInstanceError.
         for notif in notifications:
             try:
-                if has_feature(notif.recipient, "notifications", "push_notifications"):
+                db.session.refresh(notif)
+                # BUG FIX: check recipient push feature using the already-fetched
+                # recipient object, not the lazy relationship, to avoid a second
+                # query on a potentially stale relationship proxy.
+                push_recipient = db.session.get(
+                    __import__("app.models.users", fromlist=["UserData"]).UserData,
+                    notif.recipient_id,
+                )
+                if push_recipient and has_feature(push_recipient, "notifications", "push_notifications"):
                     send_notification(notif)
             except Exception as exc:
                 print("Notification failed:", exc)

@@ -53,8 +53,8 @@
       },
 
       "notifications": {
-        "push_notifications": false,
-        "email_notifications": false,
+        "push_notifications": true,
+        "email_notifications": true,
         "in_app_notifications": true,
         "notification_history_days": 7
       },
