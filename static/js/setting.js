@@ -121,6 +121,33 @@ function uploadProfileImage(input, url, fileOverride) {
     });
 }
 
+function bindPushNotificationToggle() {
+    const pushToggle = document.getElementById("push");
+    if (!pushToggle) {
+        return;
+    }
+
+    pushToggle.addEventListener("change", function () {
+        if (!pushToggle.checked) {
+            if (typeof window.deleteSavedNotificationToken === "function") {
+                window.deleteSavedNotificationToken();
+            }
+            return;
+        }
+
+        const pushIssue = typeof window.getPushSupportIssue === "function" ? window.getPushSupportIssue() : "";
+        if (pushIssue) {
+            showSettingToast(pushIssue, "error");
+            pushToggle.checked = false;
+            return;
+        }
+
+        if (typeof window.enableNotifications === "function") {
+            window.enableNotifications(true);
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     let cropper = null;
     let croppedProfileFile = null;
@@ -147,6 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const initialTheme = document.body.dataset.theme || "light";
     applyTheme(initialTheme);
     showFlashedMessages();
+    bindPushNotificationToggle();
 
     if (themeSelect) {
         themeSelect.value = initialTheme;

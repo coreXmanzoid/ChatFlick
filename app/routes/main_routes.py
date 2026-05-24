@@ -432,6 +432,44 @@ def terms_of_service():
     return render_template("termsOfService.html")
 
 
+@main_bp.route("/manifest.webmanifest")
+def web_manifest():
+    firebase_config = get_firebase_web_config()
+    sender_id = firebase_config.get("messagingSenderId", "")
+    icon_url = url_for("static", filename="assets/logo.png", _external=True)
+
+    manifest = {
+        "name": "ChatFlick",
+        "short_name": "ChatFlick",
+        "description": "ChatFlick social notifications and messaging",
+        "start_url": "/home",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#F94818",
+        "gcm_sender_id": sender_id,
+        "icons": [
+            {
+                "src": icon_url,
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            {
+                "src": icon_url,
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any",
+            },
+        ],
+    }
+
+    response = make_response(json.dumps(manifest))
+    response.headers["Content-Type"] = "application/manifest+json; charset=utf-8"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 @main_bp.route("/firebase-messaging-sw.js")
 def firebase_messaging_sw():
     firebase_config = json.dumps(get_firebase_web_config())
@@ -457,6 +495,10 @@ function getNotificationPayload(payload) {{
 }}
 
 messaging.onBackgroundMessage(function (payload) {{
+    if (payload && payload.notification) {{
+        return;
+    }}
+
     const notification = getNotificationPayload(payload);
     const tag = notification.data && notification.data.type
         ? notification.data.type + "_" + (notification.data.identifier || "")

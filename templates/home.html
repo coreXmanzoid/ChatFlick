@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="ChatFlick">
+    <link rel="manifest" href="{{ url_for('main.web_manifest') }}">
     <title>coreXmanzoid</title>
     <link rel="shortcut icon" href="{{ url_for('static', filename='assets/logo.png')}}" type="image/x-icon">
     <!-- <link rel="shortcut icon" href="../static/assets/logo.png" type="image/x-icon"> -->
@@ -200,7 +204,7 @@
                 firebaseConfig: {{ firebase_config | tojson }}
             };
         </script>
-        <script src="{{ url_for('static', filename='js/firebase-client.js') }}?v=2026-05-15-1"></script>
+        <script src="{{ url_for('static', filename='js/firebase-client.js') }}?v=2026-05-24-1"></script>
         <script src="{{ url_for('static', filename='js/home.js') }}?v=2026-05-09-1"></script>
 
 </body>

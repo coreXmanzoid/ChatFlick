@@ -346,8 +346,17 @@ function initializeNotificationsFragment($root) {
 
     const permissionWarning = document.getElementById("notifications-permission");
     if (permissionWarning) {
-        if ("Notification" in window && Notification.permission === "granted") {
+        const pushIssue = typeof window.getPushSupportIssue === "function" ? window.getPushSupportIssue() : "";
+        if (pushIssue) {
+            const messageNode = permissionWarning.querySelector("p.text-muted");
+            if (messageNode) {
+                messageNode.textContent = pushIssue;
+            }
+        } else if ("Notification" in window && Notification.permission === "granted") {
             $("#notifications-permission").remove();
+            if (typeof window.enableNotifications === "function") {
+                window.enableNotifications(false);
+            }
         }
         $(".notifications").show();
     }

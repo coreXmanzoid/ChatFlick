@@ -4,6 +4,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ChatFlick" />
+    <link rel="manifest" href="{{ url_for('main.web_manifest') }}" />
     <title>ChatFlick</title>
 
     <link rel="shortcut icon" href="{{ url_for('static', filename='assets/logo.png') }}" type="image/x-icon">
@@ -181,7 +185,7 @@
     </script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
-    <script src="{{ url_for('static', filename='js/firebase-client.js') }}?v=2026-05-15-1"></script>
+    <script src="{{ url_for('static', filename='js/firebase-client.js') }}?v=2026-05-24-1"></script>
     <script src="{{ url_for('static', filename='js/mobile-home.js') }}?v=2026-05-21-report-1"></script>
 </body>
 

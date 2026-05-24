@@ -25,22 +25,36 @@ def send_notification(notification) -> bool:
         or os.getenv("CHATFLICK_BASE_URL")
         or ""
     ).rstrip("/")
-    notification_url = f"{base_url}/home" if base_url.startswith("https://") else "/home"
+    origin = base_url or request.host_url.rstrip("/")
+    notification_url = f"{origin}/home"
+    asset_url = f"{origin}/static/assets/logo.png"
 
     webpush_options = {
         "headers": {
             "Urgency": "high",
-        }
+        },
+        "notification": messaging.WebpushNotification(
+            title=str(notification.title or "ChatFlick"),
+            body=str(notification.message or ""),
+            icon=asset_url,
+            badge=asset_url,
+            tag=f"chatflick_{notification.type}_{notification.identifier or ''}",
+            renotify=True,
+        ),
+        "fcm_options": messaging.WebpushFCMOptions(link=notification_url),
     }
-    if notification_url.startswith("https://"):
-        webpush_options["fcm_options"] = messaging.WebpushFCMOptions(
-            link=notification_url
-        )
+
+    title = str(notification.title or "ChatFlick")
+    body = str(notification.message or "")
 
     message = messaging.Message(
+        notification=messaging.Notification(
+            title=title,
+            body=body,
+        ),
         data={
-            "title": str(notification.title or "ChatFlick"),
-            "body": str(notification.message or ""),
+            "title": title,
+            "body": body,
             "type": str(notification.type),
             "identifier": str(notification.identifier or ""),
             "sender_id": str(notification.sender_id or ""),
