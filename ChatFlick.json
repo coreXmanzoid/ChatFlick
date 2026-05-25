@@ -1,47 +1,76 @@
 {
   "app": {
     "name": "ChatFlick",
-    "developers": "Hammad Ashraf (from coreXmanzoid) — Full-stack developer, designer, and sole creator of ChatFlick. A Studend from IUB- Computer Science. Passionate about building engaging social platforms and exploring AI integration.",
-    "description": "A Flask-based full-stack social microblogging web application with dual desktop and mobile UIs, email and Google OAuth authentication, follower relationships, post creation and engagement, threaded comments, in-app and Firebase push notifications, profile management with Cloudinary image hosting, granular settings and privacy controls, an admin dashboard, a Groq-powered AI assistant (Manzoid-AI), a pricing/plans page, and account data export.",
+    "developers": "Hammad Ashraf (from coreXmanzoid) — Full-stack developer, designer, and sole creator of ChatFlick. A student from IUB — Computer Science. Passionate about building engaging social platforms and exploring AI integration.",
+    "description": "A Flask-based full-stack social microblogging web application with dual desktop and mobile UIs, email and Google OAuth authentication, tiered subscription plans (free / pro / enterprise) enforced server-side via subscription.json, manual payment verification for upgrades, follower relationships, post creation and engagement with moderation, threaded comments, in-app and Firebase push notifications, profile management with plan-based Cloudinary image hosting, granular settings and privacy controls, an admin dashboard with payment and post-report workflows, a Groq-powered AI assistant (Manzoid-AI) with ChatFlick.json knowledge injection, and account data export.",
     "stack": {
       "backend": "Flask (Python), SQLAlchemy ORM, Flask-Login, Authlib (Google OAuth), itsdangerous (signed tokens)",
       "database": "SQLAlchemy with PostgreSQL (production) or SQLite (development)",
       "frontend": "Jinja2 templates, Bootstrap 5, jQuery, Bootstrap Icons, Vanilla JS",
-      "media": "Cloudinary (profile image upload, resize, overwrite)",
+      "media": "Cloudinary (profile image upload, resize, overwrite; resolution varies by plan)",
       "push_notifications": "Firebase Cloud Messaging (FCM) via firebase-admin SDK",
-      "ai": "Groq API — llama-3.1-8b-instant model",
+      "ai": "Groq API — llama-3.1-8b-instant model; ChatFlick.json used as retrieval knowledge base",
       "captcha": "Cloudflare Turnstile",
       "email": "Gmail SMTP (MIMEMultipart HTML emails)",
-      "image_cropping": "Cropper.js (client-side crop before upload)"
+      "image_cropping": "Cropper.js (client-side crop before upload)",
+      "subscriptions": "subscription.json — source of truth for per-plan feature limits and status mapping"
     },
     "live_url": "https://chatflick.pythonanywhere.com"
   },
   "user_status_levels": {
-    "UNVERIFIED": "Default status after registration. Severely restricted: cannot follow, comment, upload profile photos, or receive mention notifications.",
-    "VERIFIED": "Email confirmed. Full platform access. Required for all social interactions.",
-    "PRO": "Granted by admin only (no billing flow implemented yet). Treated as verified across the platform. Shows a verified badge on profile.",
-    "DEACTIVED": "User self-deactivated via danger zone. Data preserved. Reactivated by logging back in.",
-    "BLOCKED": "Set by admin (manually or automatically after 3 warnings). Prevents posting, commenting, following, and AI usage. Reversible by admin.",
-    "PENDING_PRO": "Internal admin workflow state — user has requested Pro but it has not been approved yet."
+    "UNVERIFIED": "Default status after registration. Severely restricted: cannot follow, comment, upload profile photos, or receive mention notifications until email is verified.",
+    "VERIFIED": "Email confirmed (free tier). Maps to subscription plan 'free' via subscription_manager. Full basic platform access per free-tier limits in subscription.json.",
+    "PENDING_PRO": "User submitted a payment screenshot for Pro/Enterprise upgrade; awaiting admin approval. Treated as verified for @verified_user. Maps to free plan features until approved.",
+    "PRO": "Paid Pro tier (admin-approved payment or manual admin grant). Maps to subscription plan 'pro'. Shows verified badge on profile.",
+    "ENTERPRISE": "Top paid tier. Maps to subscription plan 'enterprise'. Full enterprise limits from subscription.json.",
+    "DEACTIVED": "User self-deactivated via danger zone (status stored as 'DEACTIVED'). Data preserved. Reactivated by logging back in.",
+    "BLOCKED": "Set by admin (manually or automatically after 3 warnings, or via post-report moderation). Prevents posting, commenting, following, and AI usage. Reversible by admin."
+  },
+  "subscription_system": {
+    "description": "Feature gating is driven by subscription.json and enforced server-side through app/utils/subscription_manager.py. UserData.status maps to a plan; UserData.subscription_plan is a computed property.",
+    "config_file": "subscription.json at project root (sibling to ChatFlick.json)",
+    "plans": {
+      "free": "status_value VERIFIED — post_length 180, 10 posts/day, no edit, 3 hashtags, no mentions, AI via /api_chat with 0 memory and 5 requests/day",
+      "pro": "status_value PRO — post_length 230, 50 posts/day, edit within 3 min, mentions enabled, AI via /Manzoid-AI with 8 memory exchanges and 100 requests/day, $12/mo",
+      "enterprise": "status_value ENTERPRISE — unlimited posts/comments/AI where -1 means no limit, $49/mo"
+    },
+    "status_to_plan_mapping": {
+      "VERIFIED": "free",
+      "PENDING_PRO": "free",
+      "UNVERIFIED": "free",
+      "PRO": "pro",
+      "ENTERPRISE": "enterprise"
+    },
+    "helpers": {
+      "get_plan(user)": "Derives plan from status unless _subscription_plan_override is set",
+      "get_feature(user, section, key)": "Reads nested feature from plan config",
+      "has_feature(user, section, key)": "Boolean feature check",
+      "get_limit(user, section, key)": "Numeric limit; -1 means unlimited (is_unlimited)",
+      "plan_required(plan)": "Decorator — minimum plan rank required",
+      "feature_required(section, key)": "Decorator — boolean feature must be true",
+      "session_lifetime_for(user)": "timedelta from auth.session_lifetime_days; enforced in @app.before_request when session.permanent"
+    },
+    "context_processor_injection": "All templates receive subscription_plans, subscription_plan, subscription_feature, subscription_has_feature, subscription_limit",
+    "not_yet_enforced": "ads, support SLA routing, follower-growth analytics, API integrations, team seats/SSO, multi-device session registry, comments_per_day counter (TODO in subscription_manager)"
   },
   "decorators": {
-    "verified_user": "Checks current_user.status == 'VERIFIED' exactly. PRO and Verified (Google) statuses do NOT pass this guard. Returns 403 on failure.",
-    "pro_user": "Checks current_user.status == 'PRO'. Defined but NOT actively applied to any routes currently.",
-    "only_admin": "Checks current_user.username == 'coreXmanzoid'. Hardcoded username-based admin check."
+    "verified_user": "Checks (current_user.status or '').upper() in {VERIFIED, PENDING_PRO, PRO, ENTERPRISE}. PRO and ENTERPRISE users pass. Returns 403 on failure.",
+    "pro_user": "Checks current_user.subscription_plan in {pro, enterprise}. Used where Pro-tier access is required beyond verified status.",
+    "only_admin": "Checks current_user.username in {coreXmanzoid, manza}. Username-based admin check."
   },
   "modules": {
     "authentication": {
       "description": "Handles signup, credential login, Google OAuth login, email verification, password reset, and logout.",
       "routes": {
         "GET/POST /signup/<int:st>": "st=0 renders signup form. st=1 (POST JSON) checks username availability. st=0 POST processes signup form with CAPTCHA.",
-        "GET/POST /login": "Renders login form or processes credentials. Requires CAPTCHA.",
-        "GET /login/google": "Initiates Google OAuth redirect.",
-        "GET /google/authorized": "Google OAuth callback. Creates or retrieves user. Auto-sets status to 'VERIFIED'.",
+        "GET/POST /login": "Renders login form or processes credentials. Requires CAPTCHA. rememberMe sets session.permanent only if plan has auth.is_remember_me; stores login_at for session lifetime enforcement.",
+        "GET /login/google": "Initiates Google OAuth redirect. Blocked if authenticated user's plan lacks auth.google_oauth.",
+        "GET /google/authorized": "Google OAuth callback. Creates or retrieves user. New users get status='VERIFIED' (uppercase).",
         "GET/POST /reset-password": "GET renders reset form. POST (JSON) validates CAPTCHA, sends reset link email if email exists.",
         "GET/POST /reset-password/<token>": "GET renders new-password form. POST (JSON) validates token and resets password.",
         "GET /verify-email/<token>": "Verifies email token and sets status to 'VERIFIED'. Token expires after 20 minutes.",
         "POST /email-verification": "Sends verification email to current logged-in user.",
-        "GET /logout/<int:st>": "st=1 redirects to /home, st=2 (switch account) redirects to /login."
+        "GET /logout/<int:st>": "Clears fb_auth_token, logs out. st=1 redirects to /home, st=2 (switch account) redirects to /login."
       },
       "services": {
         "AuthService.create_user": "Hashes password with pbkdf2:sha256 salt_length=8. Sets status to UNVERIFIED.",
@@ -53,349 +82,339 @@
       },
       "edge_cases": [
         "Password reset returns same JSON response whether email exists or not (anti-enumeration).",
-        "Google accounts get status='VERIFIED' (title-case) not 'VERIFIED' (uppercase). The verified_user decorator checks for exact uppercase 'VERIFIED' so Google users cannot pass it.",
         "Username availability check returns status='abondonded' (misspelled) when username exists.",
-        "Logout route behavior is determined by integer path parameter, not session policy.",
-        "CAPTCHA is required on signup, login, and password-reset-request flows."
+        "CAPTCHA is required on signup, login, and password-reset-request flows.",
+        "Remember-me is plan-gated; free users cannot get permanent sessions even if checkbox is checked."
       ]
     },
     "membership_and_verification": {
-      "description": "Controls feature gating based on account status tiers.",
+      "description": "Controls feature gating based on account status tiers and subscription.json plan limits.",
       "behavior": {
-        "home_page": "Shows email verification overlay for UNVERIFIED users. PRO users are treated as verified on the home page (status == 'VERIFIED' or status == 'PRO').",
-        "verified_user_decorator": "Only accepts exact string 'VERIFIED'. PRO, Verified (Google's title-case), and all other statuses fail with 403.",
-        "protected_features": "Follow/unfollow, comments, profile image upload, and mention notifications all require @verified_user.",
-        "pro_user_decorator": "Defined in decorators.py but applied to zero routes currently.",
-        "pricing_page": "Exists at /pricing with Free/$0, Pro/$12/mo, Enterprise/$49/mo plans. No backend billing or subscription logic implemented."
+        "home_page": "Desktop /home: is_user_verified when status not in UNVERIFIED, BANNED, BLOCKED, RESTRICTED, DEACTIVATED. Mobile /mobile-home: verified when status in VERIFIED, PENDING_PRO, PRO, ENTERPRISE.",
+        "verified_user_decorator": "Accepts VERIFIED, PENDING_PRO, PRO, ENTERPRISE (case-normalized uppercase).",
+        "protected_features": "Follow/unfollow, comments, profile image upload, mention notifications, and Manzoid-AI require @verified_user plus per-feature subscription checks.",
+        "pricing_page": "GET /pricing — renders pricing.html with load_plans(). Monthly/yearly toggle in UI.",
+        "payment_flow": "GET /payment — Pro upgrade form (redirects if already PRO/ENTERPRISE). POST /payment/submit — multipart form with screenshot; sets PENDING_PRO; stores PaymentSubmission in instance/payment_screenshots/.",
+        "admin_approval": "POST /admin/api/payments/<id>/approve sets user.subscription_plan from submission; reject reverts PENDING_PRO to VERIFIED."
       }
     },
     "posts": {
-      "description": "Full post lifecycle: creation, editing (3-minute window), deletion, hashtag extraction, mention parsing.",
+      "description": "Full post lifecycle: creation, editing (plan-gated window), deletion, hashtag extraction, mention parsing, moderation status.",
       "routes": {
-        "POST /managePosts/1": "Create post. Validates user_id matches current_user.id. Rejects empty content. Extracts hashtags (removes from stored content). Parses @mentions.",
-        "POST /managePosts/2": "Edit post. Checks can_modify (owner + within 3 minutes). Does NOT re-parse hashtags or mentions.",
-        "POST /managePosts/3": "Delete post. Checks can_modify. Cascade-deletes all associated comments.",
-        "GET /showPosts/<int:state>/<int:id>": "state=0 random, state=1 profile posts, state=2 following feed (limit 10), state=3 liked posts (limit 10), state=4 reposted posts.",
-        "POST /PostAction/<int:state>": "state=1 like/unlike, state=2 repost/undo, state=3 like/unlike comment, state=4 share (increments counter).",
-        "POST /send-mention-notifications": "Sends mention notifications for a post or comment. Requires verified_user."
+        "POST /managePosts/1": "Create post. Validates user_id matches current_user.id. Enforces post_length, post_per_day, max_hashtags_per_post from plan. Mentions only if can_mention. Returns timestamp as ISO UTC.",
+        "POST /managePosts/2": "Edit post. Requires PostService.can_edit (owner + can_edit_post feature + edit_window_minutes). Re-validates post_length. Does NOT re-parse hashtags or mentions.",
+        "POST /managePosts/3": "Delete post. Requires PostService.can_delete (owner + can_delete_post + delete_window_minutes). Cascade-deletes comments.",
+        "GET /showPosts/<int:state>/<int:id>": "state=0 random, state=1 profile, state=2 following feed, state=3 liked, state=4 reposted. Query params: per_page (1-25), append=1, exclude_ids (comma-separated). Plan limits cap feed sizes. Returns posts.html with editable_post_ids.",
+        "POST /PostAction/<int:state>": "state=1 like (can_like), state=2 repost (can_repost), state=3 comment like (can_like), state=4 share (can_share). Returns 403 if plan disallows action.",
+        "POST /send-mention-notifications": "Sends mention notifications. Requires @verified_user."
       },
       "models": {
-        "Post": "id, content, user_id (FK), hashtags (JSON list), mentions (JSON list of {user_id, username}), timestamp (DateTime UTC), likes (int), comments (int), reposts (int), shares (int). Cascade deletes Comments.",
-        "Comments": "id, content, post_id (FK), user_id (FK), mentions (JSON), likes (int). No timestamp field."
+        "Post": "id, content, user_id (FK), hashtags (JSON list), mentions (JSON list of {user_id, username}), timestamp (DateTime UTC), likes, comments, reposts, shares, status (ACTIVE default; REMOVED when admin moderates). Cascade deletes Comments.",
+        "Comments": "id, content, post_id (FK), user_id (FK), mentions (JSON), likes. No timestamp field."
       },
       "services": {
-        "PostService.create_post": "Splits by newlines, strips #words per line, stores clean content. Hashtags stored as list of raw '#word' strings.",
-        "PostService.can_modify": "Checks post.user.id == user_id AND utc_now() - post.timestamp < timedelta(minutes=3). Normalizes legacy naive timestamps to aware UTC before comparison.",
-        "PostActionService.like_post": "Checks post_id not in current_user.liked_posts before incrementing. Floors at 0 on unlike.",
-        "PostActionService.repost_post": "Same uniqueness pattern as likes via current_user.reposted_posts JSON array.",
-        "PostActionService.like_comment": "No per-user uniqueness check. Simply increments/decrements.",
-        "PostActionService.share_post": "No per-user uniqueness. Simply increments shares counter."
+        "PostService.create_post": "Enforces plan limits. Splits by newlines, strips #words per line. Hashtags stored as list. Mentions empty if plan lacks can_mention.",
+        "PostService.can_edit": "Owner + has_feature can_edit_post + within edit_window_minutes.",
+        "PostService.can_delete": "Owner + has_feature can_delete_post + within delete_window_minutes.",
+        "PostActionService.like_post": "Per-user uniqueness via current_user.liked_posts. Floors at 0 on unlike.",
+        "PostActionService.repost_post": "Same uniqueness via current_user.reposted_posts.",
+        "PostActionService.like_comment": "No per-user uniqueness check.",
+        "PostActionService.share_post": "No per-user tracking."
       },
       "edge_cases": [
-        "Backend does NOT enforce the 180-character frontend limit on posts.",
-        "Backend does NOT enforce the 130-character frontend limit on comments.",
+        "Frontend may enforce character limits; backend also enforces via subscription.json per plan.",
         "Editing does not re-parse hashtags or mentions.",
-        "Missing posts during edit/delete return non-standard string status messages instead of HTTP error codes.",
         "Self-like, self-repost, self-share are not blocked at the backend.",
-        "Comment likes are not uniquely tracked — same user can toggle repeatedly.",
+        "Comment likes are not uniquely tracked.",
         "Share counter has no per-user tracking.",
-        "Milestone notifications (100, 1K, 10K likes/reposts/comments) are triggered client-side in home.js, not server-side."
+        "Milestone notifications (100, 1K, 10K) triggered client-side in home.js and mobile-home.js.",
+        "FeedService._visible_posts hides posts with status REMOVED."
       ]
     },
     "feed": {
       "description": "Builds post collections for various feed types, rendered via posts.html template.",
       "feed_types": {
-        "state=0 (random)": "FeedService.random_posts() — ORDER BY RANDOM() LIMIT 10. Not personalized.",
-        "state=1 (profile)": "FeedService.profile_posts(user_id) — all posts by user, ordered newest first. No limit.",
-        "state=2 (following)": "FeedService.following_posts(user_id) — posts from followed accounts, newest first, LIMIT 10.",
-        "state=3 (liked)": "FeedService.liked_posts(user_id) — posts whose IDs are in user.liked_posts JSON array, LIMIT 10.",
-        "state=4 (reposted)": "FeedService.reposted_posts(user_id) — returns (posts, username) tuple. username is used in template to show 'X reposted' label."
+        "state=0 (random)": "FeedService.random_posts() — ORDER BY RANDOM(), plan-limited, supports exclude_ids.",
+        "state=1 (profile)": "FeedService.profile_posts(user_id) — newest first, optional limit and exclude_ids.",
+        "state=2 (following)": "FeedService.following_posts(user_id) — posts from followed accounts, plan-limited following_feed_limit.",
+        "state=3 (liked)": "FeedService.liked_posts(user_id) — IDs in user.liked_posts, plan-limited liked_posts_limit.",
+        "state=4 (reposted)": "FeedService.reposted_posts(user_id) — returns (posts, username) tuple for 'X reposted' label, now has limit support."
       },
       "edge_cases": [
-        "Following feed returns empty list when user follows nobody.",
-        "Liked and reposted feeds return empty when tracking arrays are empty.",
-        "Random feed is not personalized and may show the user's own posts.",
-        "Reposted feed has no LIMIT unlike liked posts."
+        "Following feed returns empty when user follows nobody.",
+        "exclude_ids query param prevents duplicate posts when appending feeds via AJAX.",
+        "Random feed is not personalized.",
+        "Only ACTIVE posts (or null status) appear in feeds."
       ]
     },
     "comments": {
       "description": "Threaded comment system on posts. Single level (no nested replies).",
       "routes": {
         "GET /comments/<int:post_id>": "Returns rendered comments.html with post and up to 15 comments sorted by likes DESC.",
-        "POST /comments/<int:post_id> (state=1)": "Creates comment. Parses mentions. Increments post.comments counter. Returns {mentions, comment_id, comments_count}."
+        "POST /comments/<int:post_id> (state=1)": "Creates comment via CommentService.add_comment. Enforces comment_length and can_comment. Returns {mentions, comment_id, comments_count}."
       },
       "services": {
-        "CommentService.add_comment": "Creates Comments record linked to current_user. Parses mentions. Increments post.comments.",
-        "CommentService.get_comments": "Returns all comments for post ordered by likes DESC. Route slices to [:15].",
+        "CommentService.add_comment": "Plan-gated length and can_comment. Mentions only if can_mention. Increments post.comments.",
+        "CommentService.get_comments": "Ordered by likes DESC. Route slices to [:15].",
         "CommentService.get_post": "db.session.get(Post, post_id)."
       },
       "edge_cases": [
-        "Adding comments requires @verified_user (exact 'VERIFIED' status).",
-        "Backend does not reject empty comment content before persisting.",
-        "Comment list is capped to 15 by slicing in the route, not in the query.",
-        "Comments model has no timestamp — cannot sort by recency.",
-        "Comment likes have no per-user tracking."
+        "Requires @verified_user.",
+        "Backend rejects over-limit comments with ValueError → 403 JSON.",
+        "Comments model has no timestamp.",
+        "Post options menu in comments.html mirrors home.js (report, placeholders for follow/block/copy-link)."
       ]
     },
     "social_graph": {
       "description": "Follow and unfollow relationships. Follower/following counts on profiles.",
       "routes": {
-        "POST /follows/<int:id>/<int:st>": "st=1 follow, st=2 unfollow. Returns {status, follower_id, follower_name, followersCount}. Requires @verified_user.",
-        "GET /exploreAccounts/<int:id>/<string:state>": "state='random' returns 10 random accounts. state='following' returns accounts this user follows. state='followers' returns accounts following this user. Any other string is treated as a username search query."
+        "POST /follows/<int:id>/<int:st>": "st=1 follow, st=2 unfollow. Requires @verified_user. Enforces can_follow and max_following. Returns {status, follower_id, follower_name, followersCount}.",
+        "GET /exploreAccounts/<int:id>/<string:state>": "state='random' | 'following' | 'followers' | username search. Passes following_ids set to template."
       },
       "models": {
-        "Follow": "id, follower_id (FK to user_data), following_id (FK to user_data). Bidirectional relationships on UserData."
+        "Follow": "id, follower_id (FK), following_id (FK). Bidirectional relationships on UserData."
       },
       "services": {
-        "FollowService.follow_user": "Creates Follow(follower_id=current_user.id, following_id=user_id). No duplicate prevention.",
-        "FollowService.unfollow_user": "Queries for existing Follow and deletes it. Silent success if not found.",
-        "FollowService.follower_count": "COUNT query on Follow.following_id == user_id.",
+        "FollowService.follow_user": "Checks can_follow, duplicate follow (silent return if exists), max_following limit.",
+        "FollowService.unfollow_user": "Deletes existing Follow row if found.",
+        "FollowService.follower_count": "COUNT on Follow.following_id.",
         "AccountService.random_accounts": "ORDER BY RANDOM() LIMIT 10.",
-        "AccountService.search_accounts": "WHERE username CONTAINS query (lowercase), GROUP BY id, ORDER BY follower count DESC. If results > 10, random.sample(10) returned."
+        "AccountService.search_accounts": "Username CONTAINS query, ordered by follower count; random.sample(10) if > 10 results."
       },
       "edge_cases": [
-        "No prevention for self-following.",
-        "No unique constraint preventing duplicate follow rows.",
-        "Search only matches usernames, not names, bios, or other fields.",
-        "Explore route falls back to search logic for any unknown non-special state string."
+        "No explicit self-follow block at backend.",
+        "Duplicate follows prevented by query-before-insert.",
+        "Search only matches usernames."
       ]
     },
     "profile": {
-      "description": "User profile display and profile picture upload.",
+      "description": "User profile display, about page, and profile picture upload.",
       "routes": {
-        "GET /profile/<int:id>": "id=0 returns newPost.html template (new post composer). Otherwise returns profile.html with user data and is_following flag.",
-        "POST /update-profile/<int:id>": "Uploads profile image to Cloudinary. Requires login, @verified_user, file present, non-empty filename, user exists, current_user.id == id."
+        "GET /profile/<int:id>": "id=0 returns newPost.html. Otherwise profile.html with is_following flag.",
+        "GET /profile/<int:id>/about": "Renders profileAbout.html for user.",
+        "POST /update-profile/<int:id>": "Uploads to Cloudinary at plan's profile_image_resolution. Requires @verified_user."
       },
       "cloudinary": {
         "folder": "profile_pictures",
         "public_id": "user_{id}",
         "overwrite": true,
-        "transformation": "width=256, height=256, crop=fill + quality=auto + fetch_format=auto",
-        "result": "Stores secure_url in user.profile_image_url"
+        "transformation": "width/height from plan (e.g. 256x256 free, 512x512 pro), crop fill, quality auto, fetch_format auto"
       },
       "profile_template_features": [
-        "Shows profile image, name, PRO badge (bi-patch-check-fill) if status==PRO",
-        "Shows username, birth date (if show_birthdate setting), bio (if show_bio setting), website link",
-        "Shows Follow/Following/Edit Profile button based on relationship",
-        "Shows follower and following counts (if show_status setting)",
-        "ProfileOptions tabs: Posts, Likes, Reposts for own profile; Posts, Reposts for others"
-      ],
-      "edge_cases": [
-        "Only profile image URL is editable via this route. Full profile editing (name, username, bio) is done through /setting/profile-setting.",
-        "Uploading for non-existent user returns 404.",
-        "Client-side uses Cropper.js to crop to 300x300 before uploading."
+        "Profile image, name, PRO badge if status==PRO",
+        "Username, birth date (show_birthdate), bio (show_bio), website",
+        "Follow/Following/Edit Profile button",
+        "Follower/following counts (show_status)",
+        "Tabs: Posts, Likes, Reposts (own); Posts, Reposts (others)"
       ]
     },
     "settings": {
-      "description": "Full account settings management across 7 sections with save/cancel actions.",
+      "description": "Account settings across 7 sections with plan-gated saves.",
       "routes": {
         "GET /setting": "Redirects to /setting/profile-info.",
-        "GET /setting/<string:section>": "Valid sections: profile-info, account-info, change-password, privacy-setting, notifications-setting, support, delete-account. Invalid sections redirect to profile-info.",
-        "POST /setting/profile-setting": "Updates name, username (validates uniqueness and format), contact, bio.",
-        "POST /setting/account-setting": "Updates email (validates format and uniqueness, resets status to UNVERIFIED on change), birthdate, website, about.",
-        "POST /setting/password-setting": "Verifies current password, checks new==confirm, updates hash.",
-        "POST /setting/privacy-settings": "Updates private_account, show_birthdate, show_bio, show_status in user settings JSON.",
-        "POST /setting/notifications-settings": "Updates email_notifications, push_notifications, new_followers, mentions, likes_comments, reposts in user settings JSON.",
-        "POST /setting/support-setting": "Updates theme (light/dark).",
-        "GET /setting/download-account-data/<int:id>": "Returns ZIP file containing ChatFlick_Data.json with account info, posts, and settings. Requires id == current_user.id.",
-        "POST /setting/create-report": "Creates Report record for user.",
-        "POST /setting/create-support-request": "Creates Support record with category and message.",
-        "POST /danger-zone/<int:st>": "st=1 deactivates account (status='DEACTIVED', logout). st=2 permanently deletes account and all cascade data (logout)."
+        "GET /setting/<string:section>": "profile-info, account-info, change-password, privacy-setting, notifications-setting, support, delete-account.",
+        "POST /setting/profile-setting": "Name, username, contact (can_set_contact), bio (bio_length limit).",
+        "POST /setting/account-setting": "Email (resets UNVERIFIED on change), birthdate, website (can_set_website), about.",
+        "POST /setting/password-setting": "Current password verification, update hash.",
+        "POST /setting/privacy-settings": "private_account, show_birthdate, show_bio, show_status.",
+        "POST /setting/notifications-settings": "email/push/new_followers/mentions/likes_comments/reposts toggles.",
+        "POST /setting/support-setting": "theme light/dark.",
+        "GET /setting/download-account-data/<int:id>": "ZIP export; requires can_download_data.",
+        "POST /setting/create-report": "User Report model; requires can_report_content.",
+        "POST /setting/create-support-request": "Support ticket; auto-generates AIService.answer_support_request reply in JSON; requires can_submit_support_ticket.",
+        "POST /danger-zone/<int:st>": "st=1 deactivate (DEACTIVED), st=2 delete account. Plan-gated can_deactivate/can_delete."
       },
       "user_settings_model": {
-        "storage": "user.setting is a MutableDict JSON column. Uses get_setting(section, key, default) and set_setting(section, key, value) methods.",
+        "storage": "user.setting MutableDict JSON. Dot-path keys via get_setting/set_setting.",
         "default_settings": {
           "profile-info": {"bio": ""},
-          "account-info": {"website": "", "about": "", "warnings": 0},
+          "account-info": {"website": "", "about": "", "created_at": null, "level": "New Member", "warnings": 0, "previous_status": null},
           "privacy-setting": {"private_account": false, "show_birthdate": false, "show_bio": true, "show_status": true},
           "notifications-setting": {"email_notifications": true, "push_notifications": true, "new_followers": true, "mentions": true, "likes_comments": true, "reposts": true},
-          "support": {"theme": "light"}
+          "support": {"theme": "light"},
+          "usage": {"ai": {"date": null, "count": 0}}
         },
-        "set_setting_behavior": "Values equal to the default are deleted from the stored dict to save space. Only overrides are stored."
-      },
-      "edge_cases": [
-        "Changing email resets account status to UNVERIFIED (user must re-verify).",
-        "Username validation: 3-20 chars, letters/numbers/underscores only, case-insensitive (stored lowercase).",
-        "danger-zone requires username confirmation on the frontend before submitting.",
-        "Settings page uses flash messages rendered as toast notifications via setting-flash-data script tag."
-      ]
+        "set_setting_behavior": "Values equal to default are deleted. Invalid paths raise KeyError."
+      }
     },
     "notifications": {
-      "description": "In-app notification inbox and Firebase push notification delivery.",
+      "description": "In-app notification inbox and Firebase push delivery with per-recipient plan checks.",
       "routes": {
-        "POST /save-token": "Saves Firebase FCM token to current_user.fb_auth_token.",
-        "GET /notifications": "Returns rendered notifications.html with 15 most recent notifications for current_user, ordered by created_at DESC.",
-        "GET /notifications/mark_read/<int:user_id>": "Marks all notifications for user_id as is_read=True. Requires user_id == current_user.id.",
-        "GET /check-notifications/<int:user_id>": "Returns {unread_count} for user_id. Requires user_id == current_user.id.",
-        "POST /send-notification-route/<int:state>/<string:push>": "state=2 broadcasts to all followers of current_user. state=3 sends to single recipient. push='true' triggers Firebase push delivery."
+        "POST /save-token": "Saves FCM token; requires push_notifications feature. Clears duplicate tokens on other users.",
+        "POST /delete-token": "Clears fb_auth_token for current user.",
+        "GET /notification-health": "Firebase admin and web config diagnostic JSON.",
+        "POST /notification-test-push": "Sends test push to current user.",
+        "POST /notification-diagnostic-push": "Extended diagnostic push.",
+        "GET /notifications": "Renders notifications.html; filters by notification_history_days plan limit; max 15 rows.",
+        "GET /notifications/mark_read/<int:user_id>": "Marks all read. Requires user_id == current_user.id.",
+        "GET /check-notifications/<int:user_id>": "Returns {unread_count}.",
+        "POST /send-notification-route/<int:state>/<string:push>": "state=2 broadcast to followers, state=3 single recipient. Push checked against recipient's plan, not sender's."
       },
       "model": {
-        "Notification": "id, recipient_id (FK), sender_id (FK nullable), title (255), message, type (50), identifier (int nullable), is_read (bool, default False), created_at (timezone-aware DateTime UTC)."
+        "Notification": "id, recipient_id, sender_id (nullable), title, message, type, identifier, is_read, created_at (UTC)."
       },
       "notification_types_used": [
-        "new_post — broadcast to followers when user posts",
-        "new_follower — sent to followed user when someone follows",
-        "follower_milestone — 100/1K/10K followers milestone",
-        "post_like — sent to post owner on like",
-        "post_like_milestone — 100/1K/10K likes milestone",
-        "post_retweet — sent to post owner on repost",
-        "post_retweet_milestone — 100/1K/10K reposts milestone",
-        "new_comment — sent to post owner on comment",
-        "post_comment_milestone — 100/1K/10K comments milestone",
-        "mention_post — sent to mentioned user in a post",
-        "mention_comment — sent to mentioned user in a comment",
-        "profile_update — broadcast to followers on profile pic update",
-        "general — fallback type"
+        "new_post", "new_follower", "follower_milestone", "post_like", "post_like_milestone",
+        "post_retweet", "post_retweet_milestone", "new_comment", "post_comment_milestone",
+        "mention_post", "mention_comment", "profile_update", "moderation_warning", "general"
       ],
       "services": {
-        "NotificationService.update_or_create": "Deduplicates by (type, identifier, recipient_id). Updates created_at and message if found. Used for likes, reposts, follows (avoids spam).",
-        "NotificationService.create_notification": "Always creates new record. Used rarely.",
-        "NotificationService.send_mention_notifications": "Creates new Notification per mention — no deduplication. Skips self-mentions.",
-        "send_notification (push_service)": "Initializes Firebase if not already done. Gets fb_auth_token from notification.recipient. Sends FCM Message. Returns bool."
+        "NotificationService.update_or_create": "Deduplicates; returns None if recipient lacks in_app_notifications.",
+        "NotificationService.send_mention_notifications": "No deduplication; skips self-mentions.",
+        "send_notification (push_service)": "FCM Message; recipient must have push_notifications feature."
       },
-      "milestone_logic": "Milestone notifications are triggered client-side in home.js and mobile-home.js based on the returned count values. They are NOT triggered server-side.",
       "edge_cases": [
-        "Mention notifications do not deduplicate — repeated mentions create repeated entries.",
-        "Push delivery silently fails if Firebase not initialized or FCM token missing.",
-        "Follower broadcast (state=2) skips sender (recipient_id == sender_id check).",
-        "Self-notification prevention only in state=3 single-recipient route.",
-        "Notification created_at is stored as timezone-aware UTC and rendered as ISO-8601 UTC.",
-        "check-notifications and mark_read both verify user_id == current_user.id.",
-        "Notifications page shows sender.profile_image_url, sender.name, title, message, relative timestamp."
+        "update_or_create returns None for deleted users or disabled in-app notifications — routes guard against None before push.",
+        "Milestone notifications client-side only.",
+        "Notification history trimmed by plan days (7 free, 30 pro, unlimited enterprise)."
       ]
     },
     "ai_assistant": {
-      "description": "Groq-powered AI chat with authenticated per-user short-term memory and a public stateless endpoint.",
+      "description": "Groq-powered Manzoid-AI with ChatFlick.json knowledge retrieval, per-user memory, support-answer mode, and plan limits.",
       "routes": {
-        "GET /Manzoid-AI": "Renders AI.html chat page. Requires login. @verified_user decorator is commented out.",
-        "POST /Manzoid-AI": "Authenticated chat. Requires {message, user_id} in JSON body. message limit 130 chars. Uses per-user conversation history.",
-        "POST /api/ai/chat": "Public stateless endpoint. Requires {message}. message limit 100 chars. No auth required."
+        "GET /Manzoid-AI": "Renders AI.html. Requires login + @verified_user + ai_access feature.",
+        "POST /Manzoid-AI": "Authenticated chat. Uses current_user.id (not client-supplied). Enforces ai_message_length and ai_requests_per_day (stored in usage.ai settings). Memory from ai_conversation_memory plan limit.",
+        "POST /api_chat": "Public stateless endpoint (no auth). Max 1000 chars. Uses AIService.simple_chat."
       },
       "services": {
-        "AIService.chat": "Maintains user_history dict keyed by user_id. Keeps last MAX_HISTORY=2 exchanges. Builds context_prompt string. Uses llama-3.1-8b-instant with max_tokens=180.",
-        "AIService.simple_chat": "No history. Single prompt. max_tokens=150."
+        "AIService.chat": "Per-user history keyed by str(user_id). max_history from plan (-1 = unlimited). max_tokens=320. Injects ChatFlickKnowledge.relevant_context.",
+        "AIService.simple_chat": "No history. max_tokens=260.",
+        "AIService.answer_support_request": "Support mode with prior answered Support examples from DB. Used by admin AI-answer route and support ticket creation.",
+        "ChatFlickKnowledge": "Loads ChatFlick.json, flattens to sections, keyword-scores up to 4 sections (900 chars each) for system prompt injection."
       },
       "edge_cases": [
-        "Authenticated route requires user_id in payload but does NOT verify it matches current_user.id — any authenticated user can pass any user_id to read/write another user's history.",
-        "user_history is stored in process memory (module-level dict). Resets on server restart.",
-        "AI page loads inside div3 via AJAX in home.js using $('.div3').load('/Manzoid-AI') — the rendered HTML is injected, not the full page.",
-        "Mobile app reconstructs the AI chat UI in JavaScript rather than loading the template.",
-        "@verified_user and @pro_user decorators are present in import but commented out on the route.",
-        "Returns 503-style JSON error when Groq API is unavailable."
+        "user_history is in-process memory; resets on server restart.",
+        "Free plan references ai_route /ai-chat in subscription.json but actual free route is /api_chat; Pro uses /Manzoid-AI.",
+        "Daily AI usage tracked in user.setting usage.ai with date rollover.",
+        "Returns 503 JSON when Groq unavailable.",
+        "AI page loaded via AJAX in home.js: $('.div3').load('/Manzoid-AI')."
       ]
     },
     "admin": {
-      "description": "Full admin dashboard at /admin. Protected by @login_required + @verified_user + @only_admin (username='hammad').",
+      "description": "Admin dashboard at /admin. Protected by @login_required + @verified_user + @only_admin (usernames coreXmanzoid, manza).",
       "routes": {
         "GET /admin": "Renders admin.html SPA.",
-        "GET /admin/api/dashboard": "Returns {supportRequests, userReports, managedUsers} serialized data.",
-        "POST /admin/api/support/<id>/reply": "Saves admin_reply text to support request.",
-        "POST /admin/api/support/<id>/answer": "Sets support status to 'ANSWERED', optionally saves reply.",
-        "POST /admin/api/reports/<id>/review": "Sets report status to 'REVIEWED'.",
-        "POST /admin/api/users/<id>/verify": "Sets user status to 'VERIFIED' if currently UNVERIFIED. Blocked users must be unblocked first.",
-        "POST /admin/api/users/<id>/approve-pro": "Sets user status to 'PRO'. Blocked users cannot receive Pro.",
-        "POST /admin/api/users/<id>/reject-pro": "Reverts PENDING_PRO users back to 'VERIFIED'.",
-        "POST /admin/api/users/<id>/warning": "Increments warnings counter in user settings. Auto-blocks at warnings >= 3.",
-        "POST /admin/api/users/<id>/block": "Sets status to 'BLOCKED'. Saves previous status to settings.",
-        "POST /admin/api/users/<id>/unblock": "Restores previous_status from settings. Prevents restoring to 'BLOCKED'."
-      },
-      "services": {
-        "AdminService.dashboard_data": "Fetches all support requests, reports, and users ordered by id DESC.",
-        "AdminService._remember_previous_status": "Saves user.status to account-info.previous_status before blocking.",
-        "AdminService._serialize_user": "Returns {id, dbId, name, email, verified, pendingPro, pro, status, rawStatus, warnings, profileUrl}. verified=True if status in {VERIFIED, PENDING_PRO, PRO}.",
-        "AdminService._serialize_support_request": "Formats id as 'SUP-XXXX', userId as 'USR-XXXX'. Includes adminReply.",
-        "AdminService._serialize_report": "Formats id as 'RPT-XXXX'. Includes report_text."
+        "GET /admin/api/dashboard": "Returns supportRequests, userReports, postReports, managedUsers, paymentSubmissions.",
+        "POST /admin/api/support/<id>/reply": "Saves admin_reply.",
+        "POST /admin/api/support/<id>/answer": "Sets status ANSWERED.",
+        "POST /admin/api/support/<id>/ai-answer": "Generates reply via AIService.answer_support_request.",
+        "POST /admin/api/reports/<id>/review": "User Report → REVIEWED.",
+        "POST /admin/api/post-reports/<id>/review": "Post report → reviewed.",
+        "POST /admin/api/post-reports/<id>/remove-post": "Sets post.status REMOVED.",
+        "POST /admin/api/post-reports/<id>/warn-author": "Increments warnings; auto-blocks at 3; sends moderation_warning notification.",
+        "POST /admin/api/users/<id>/verify": "UNVERIFIED → VERIFIED.",
+        "POST /admin/api/users/<id>/approve-pro": "Sets subscription_plan pro.",
+        "POST /admin/api/users/<id>/reject-pro": "PENDING_PRO → VERIFIED.",
+        "POST /admin/api/payments/<id>/approve": "Approves PaymentSubmission; upgrades user plan.",
+        "POST /admin/api/payments/<id>/reject": "Rejects payment; reverts PENDING_PRO.",
+        "GET /admin/payment-screenshots/<filename>": "Serves uploaded screenshot.",
+        "POST /admin/api/users/<id>/warning|block|unblock": "Warning counter, block with previous_status saved, unblock restores.",
+        "GET /admin/backup/sqlite-download": "SQLite backup (admin only, main_routes).",
+        "POST /admin/restore/sqlite-upload": "SQLite restore (admin only)."
       },
       "models": {
-        "Support": "id, category, message, user_id (FK), admin_reply (nullable), created_at, updated_at (nullable), status (default='PENDING').",
-        "Report": "id, report_text, user_id (FK), created_at, status (default='PENDING')."
+        "Support": "id, category, message, user_id, admin_reply, created_at, updated_at, status (PENDING/ANSWERED).",
+        "Report": "id, report_text, user_id, created_at, status — user-submitted account reports.",
+        "ReportPost": "id, post_id, reported_by, reason, details, status, admin_action, admin_note, created_at, reviewed_at.",
+        "PaymentSubmission": "id, user_id, full_name, email, plan, payment_method, transaction_id (unique), screenshot_path, note, status, admin_note, created_at, reviewed_at."
       },
-      "frontend": "admin.js — SPA with Bootstrap modals. Sections: dashboard (metrics), support requests (table + modal), reports (table + modal), users (table + management panel). Uses fetch() API with JSON."
+      "frontend": "admin.js — dashboard, support, user reports, post reports, payments, user management panels."
+    },
+    "post_moderation": {
+      "description": "User-facing post reporting and admin moderation workflow.",
+      "routes": {
+        "POST /reports/posts": "JSON {post_id, category, message}. Requires can_report_content. Upserts pending ReportPost per reporter+post."
+      },
+      "valid_reasons": [
+        "Spam", "Harassment or Bullying", "Hate Speech", "Violence or Threats",
+        "Adult or Sexual Content", "Graphic or Disturbing Content", "Fake Information",
+        "Scam or Fraud", "Copyright Violation", "Privacy Violation",
+        "Self-harm or Dangerous Content", "Impersonation", "Illegal Content",
+        "Off-topic or Misleading", "Other"
+      ],
+      "client": "home.js report-center overlay; post options menu items (follow-me, favorites, interested, copy-link, block-user) show 'coming soon' toasts except report and interest toggles."
     },
     "account_discovery": {
-      "description": "Account search and suggestions for the explore tab.",
+      "description": "Account search and suggestions for explore tab.",
       "behavior": {
-        "random": "Returns 10 random users via ORDER BY RANDOM().",
-        "search": "Matches username containing query (case-insensitive). Joins Follow table to count followers. Orders by follower count DESC. If results > 10, random.sample(10) returned.",
-        "following": "Returns list of UserData objects this user is following.",
-        "followers": "Returns list of UserData objects following this user."
+        "random": "10 random users.",
+        "search": "Username match, follower count order, max 10.",
+        "following": "Accounts user follows.",
+        "followers": "Accounts following user."
       },
-      "template": "exploreAccounts.html — shows profile image, name, username, follower count, Follow/Following button. Inline script handles follow/unfollow AJAX and sends notifications."
+      "template": "exploreAccounts.html — follow/unfollow AJAX with notifications."
     },
     "mobile": {
-      "description": "Dedicated mobile UI served at /mobile-home. Auto-redirected from /home when mobile User-Agent detected.",
-      "detection": "Regex on User-Agent: Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile.",
-      "template": "mobile-home.html — bottom nav (Home, Search, More, AI, Profile), accounts-row stories strip, feed-post section, fullpost overlay (bottom sheet).",
-      "script": "mobile-home.js — mirrors all home.js functionality. showHome(), showProfile(), showSearch(), showNotifications(), showAi(), showFullPost() (bottom sheet overlay). Uses ajaxWithAbort() for request management.",
-      "ai_on_mobile": "AI UI is constructed entirely in JavaScript (not loaded from template). sendMessage() posts to /Manzoid-AI.",
-      "more_menu": "Grid overlay above bottom nav with: Settings, About us, Terms, Liked posts, Logout, Switch account, Help."
+      "description": "Dedicated mobile UI; auto-redirect from /home on mobile User-Agent.",
+      "detection": "Regex: Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile.",
+      "template": "mobile-home.html — bottom nav, accounts-row, feed, fullpost overlay.",
+      "script": "mobile-home.js — mirrors home.js; showAi() posts to /Manzoid-AI.",
+      "more_menu": "Settings, About, Terms, Liked posts, Logout, Switch account, Help."
     },
     "data_model": {
       "UserData": {
-        "fields": "id, name, username (unique), profile_image_url (nullable), email (unique), contact (String nullable), password (hashed), fb_auth_token (nullable), liked_posts (MutableList JSON), birth_date (Date nullable), reposted_posts (MutableList JSON), status (String, default='UNVERIFIED'), setting (MutableDict JSON)",
-        "relationships": "posts (cascade delete), comments (cascade delete), support (cascade delete), reports (cascade delete), followers (Follow.following_id), following (Follow.follower_id), received_notifications (cascade delete), sent_notifications (cascade delete)",
-        "methods": "get_setting(section, key, default=None) — reads from self.setting with DEFAULT_USER_SETTINGS fallback. set_setting(section, key, value) — only stores if value differs from default. Deletes empty nested dicts."
+        "fields": "id, name, username (unique), profile_image_url, email (unique), contact, password (hashed), fb_auth_token, liked_posts (JSON), birth_date, reposted_posts (JSON), status (default UNVERIFIED), setting (JSON)",
+        "computed": "subscription_plan, is_pro, is_enterprise, is_paid_plan",
+        "relationships": "posts, comments, support, reports, followers, following, received_notifications, sent_notifications, payment_submissions"
       },
-      "Post": "id, content, user_id, hashtags (JSON), mentions (JSON), timestamp (DateTime UTC), likes, comments, reposts, shares. Cascade deletes Comments.",
-      "Comments": "id, content, post_id, user_id, mentions (JSON), likes. No timestamp.",
-      "Follow": "id, follower_id, following_id. Both FK to user_data.",
-      "Notification": "id, recipient_id, sender_id (nullable), title, message, type, identifier (int nullable), is_read, created_at.",
-      "Support": "id, category, message, user_id, admin_reply, created_at, updated_at, status.",
-      "Report": "id, report_text, user_id, created_at, status."
+      "Post": "Includes status ACTIVE|REMOVED. Cascade deletes comment_entries.",
+      "Comments": "No timestamp.",
+      "Follow": "follower_id, following_id.",
+      "Notification": "Standard inbox fields.",
+      "Support": "Support tickets.",
+      "Report": "User account reports.",
+      "ReportPost": "Post content reports.",
+      "PaymentSubmission": "Manual payment verification records."
     },
     "utilities": {
-      "mentions_parser": "Extracts @username tokens from content. Queries UserData for matching usernames. Returns list of {user_id, username} dicts.",
-      "validate_username": "3-20 chars, only letters/numbers/underscores, case-insensitive (lowercased). Spaces replaced with underscores.",
-      "build_unique_username": "Strips non-alphanumeric chars, lowercases, appends incrementing counter if username already exists.",
-      "PostService._normalize_timestamp": "Adds UTC tzinfo to naive timestamps before timedelta comparison."
+      "mentions_parser": "Extracts @username tokens; returns [{user_id, username}].",
+      "validate_username": "3-20 chars, letters/numbers/underscores/dots, lowercased.",
+      "build_unique_username": "Appends counter if taken.",
+      "utc_now / utc_iso_from / ensure_utc": "Centralized timezone-aware timestamps in app/utils/time_utils.py."
     },
     "static_pages": {
-      "/": "Landing page (index.html) with Google sign-in, Apple sign-in (placeholder), Create Account, and Login buttons.",
-      "/about": "About page (about.html) — mission, features, tech stack, developer bio (M. Hammad Ashraf), development timeline, vision, contact.",
-      "/privacy-policy": "Full privacy policy (privacyPolicy.html) including data collected table, authentication, posts, notifications, AI assistant, third parties, pricing policy, user rights, security, children policy, changes.",
-      "/terms-of-service": "Full terms of service (termsOfService.html) — 17 sections covering acceptance, eligibility, accounts, content rules, prohibited conduct, engagement, AI, notifications, moderation, membership tiers, IP, third parties, termination, disclaimers, liability, changes, contact.",
-      "/pricing": "Pricing page (pricing.html) — Free/$0, Pro/$12/mo (featured), Enterprise/$49/mo cards with monthly/yearly toggle (20% discount). FAQs section. No backend billing."
+      "/": "Landing (index.html) — Google sign-in, Create Account, Login.",
+      "/about": "about.html — mission, features, developer bio.",
+      "/privacy-policy": "privacyPolicy.html.",
+      "/terms-of-service": "termsOfService.html — 17 sections including membership tiers.",
+      "/pricing": "pricing.html — plan cards from subscription.json; links to /payment.",
+      "/manifest.webmanifest": "PWA manifest served by main_routes.",
+      "/firebase-messaging-sw.js": "Dynamic service worker script from main_routes."
     },
     "client_scripts": {
-      "home.js": "Desktop SPA logic. ajaxWithAbort() for AbortController-based request management. Functions: showProfile(), showPosts(), showFullPost(), submitComment(), sendNotification(), prependPost(), exploreAccounts(), checkForNotifications(), markAsRead(), uploadProfileImage(). Handles all post actions (like, repost, share, edit, delete) via event delegation.",
-      "mobile-home.js": "Mobile SPA equivalent of home.js. Additional functions: showHome(), showSearch(), showAi(), showLikedPosts(), showNotifications(), toggleMoreMenu(), resetOverlay() for bottom sheet. Builds AI UI in JS.",
-      "setting.js": "Settings page logic. saveChanges(), showSettingToast(), showFlashedMessages(), uploadProfileImage() with Cropper.js integration. Handles all settings sections, danger zone confirmation flow, report/support submission.",
-      "admin.js": "Admin SPA. Loads data from /admin/api/dashboard. Renders support, reports, users tables. User management panel. Modal interactions for support/report details. Filter/search on each section.",
-      "signup.js": "Real-time username availability check (keydown AJAX to /signup/1). Password strength meter. Email duplicate check (isEmailValid function defined but call commented out).",
-      "resetPassword.js": "Reset form submit handler (AJAX POST JSON). New password strength meter. Password confirmation validation."
+      "home.js": "Desktop SPA. ajaxWithAbort, feed append with exclude_ids, post actions, notifications, profile upload, report overlay, post options menu (report live; follow/block/copy-link coming soon).",
+      "mobile-home.js": "Mobile SPA equivalent including AI UI built in JS.",
+      "setting.js": "Settings save/cancel, Cropper.js upload, danger zone, toasts.",
+      "admin.js": "Admin SPA with payments and post reports.",
+      "signup.js": "Username availability AJAX, password strength.",
+      "resetPassword.js": "Reset form AJAX, password strength."
     },
     "firebase_and_push": {
-      "config": "Initialized from service account JSON file at startup. Candidate paths checked: FIREBASE_SERVICE_ACCOUNT env var, corexmanzoid-twitter-notify-firebase.json, firebase-service-account.json.",
-      "client_config": "firebase-messaging-sw.js (gitignored) and firebase.js (gitignored) handle service worker registration and FCM token retrieval. Config injected via window.firebaseRuntimeConfig in home.html and mobile-home.html.",
-      "token_save": "POST /save-token saves FCM token to user.fb_auth_token.",
-      "push_delivery": "send_notification() in push_service.py creates messaging.Message with notification body and data payload {type, identifier, sender_id}."
+      "config": "FIREBASE_SERVICE_ACCOUNT env or json files at project root.",
+      "client_config": "firebase-messaging-sw.js and firebase.js (gitignored); window.firebaseRuntimeConfig in templates.",
+      "token_save": "POST /save-token with duplicate cleanup.",
+      "push_delivery": "Per-recipient plan check in notification routes and push_service."
     },
     "cloudinary_config": {
       "env_vars": "CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_API_PROXY (optional)",
-      "configure_cloudinary": "Called at import time in cloudinary_config.py (eager init) and again in CloudinaryService.upload_profile_picture (redundant but safe).",
-      "note": "configure_cloudinary() is called at module import which may cause startup errors if env vars are missing."
+      "resolution": "Passed from subscription profile.profile_image_resolution per upload."
     },
     "app_factory": {
-      "create_app": "Loads .env, creates Flask app, sets SECRET_KEY (hardcoded in code — should be from env), sets SQLALCHEMY_DATABASE_URI (SQLite default, PostgreSQL env var commented out), calls db.create_all() in app context.",
-      "blueprints_registered": ["notification_bp", "profile_bp", "post_bp", "ai_bp", "auth_bp", "main_bp", "comment_bp", "account_bp", "setting_bp", "admin_bp", "pricing_bp"],
-      "context_processor": "inject_runtime_config injects firebase_enabled, firebase_status, fcm_vapid_key, firebase_api_key, current_time (UTC), current_user into all templates."
+      "create_app": "Loads .env, Flask app, SECRET_KEY hardcoded, SQLite default DB, db.create_all(), subscription session lifetime before_request.",
+      "blueprints_registered": ["notification_bp", "profile_bp", "post_bp", "ai_bp", "auth_bp", "main_bp", "comment_bp", "account_bp", "setting_bp", "admin_bp", "pricing_bp", "report_bp"],
+      "context_processor": "inject_runtime_config — firebase, subscription helpers, current_time, current_user."
     },
     "known_bugs_and_issues": [
-      "SECRET_KEY is hardcoded in __init__.py ('8BYkEfBA6O6donzWlSihBXox7C0sKR6b') — should be loaded from environment variable.",
-      "Google OAuth creates users with status='VERIFIED' (title-case) but @verified_user requires 'VERIFIED' (uppercase) — Google users cannot access verified-only features.",
-      "Duplicate follow rows are possible (no unique constraint on (follower_id, following_id)).",
-      "AI route does not verify that user_id in request body matches current_user.id — session hijacking of conversation history is possible.",
-      "Comment likes have no uniqueness tracking — easily manipulable.",
+      "SECRET_KEY is hardcoded in __init__.py — should be loaded from environment variable.",
+      "subscription.json free tier lists ai_route /ai-chat but implemented public route is POST /api_chat.",
+      "Comment likes have no per-user uniqueness tracking.",
       "Editing posts does not re-parse hashtags or @mentions.",
-      "Backend enforces no character limit on posts or comments.",
-      "post_action_service.py does not defensively handle missing Post/Comment before mutation — can cause AttributeError.",
-      "setting.js readFlashedMessages has a variable name bug: catches `err` but references `error` in the catch block.",
-      "comments.html template references post.retweets instead of post.reposts for the retweet count in the comment detail view.",
-      "isEmailValid() function in signup.js references global `data` variable but the call is commented out.",
-      "Logout route uses integer path param for behavior (st=1 vs st=2) rather than query param or session state — fragile API design.",
-      "configure_cloudinary() is called eagerly at module import which can cause startup failure if Cloudinary env vars are missing.",
-      "delete-account settings section exists but the original system (before danger-zone route) had no backend implementation. Now implemented via /danger-zone/2.",
-      "PRO status users cannot pass @verified_user decorator — they cannot follow, comment, upload photos, etc. without the decorator being updated."
+      "Self-like, self-repost, self-share not blocked server-side.",
+      "post_action_service may not defensively handle missing Post/Comment in all code paths.",
+      "home /home vs /mobile-home use slightly different is_user_verified status checks (DEACTIVATED vs DEACTIVED spelling).",
+      "Post options menu items (follow-me, add-to-favorites, copy-link, block-user) are UI placeholders only.",
+      "configure_cloudinary() eager import can fail startup if Cloudinary env vars missing.",
+      "Some subscription.json limits (comments_per_day, ads, SLA) documented but not yet enforced server-side."
     ]
   }
 }

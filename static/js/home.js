@@ -1216,6 +1216,18 @@ $(document).off("click.options-menu", ".options-menu a").on("click.options-menu"
         const postId = $(this).closest(".options-menu").data("postid")
             || $(this).closest(".post, .post-detail").data("postid");
         $(".report-center").data("postid", postId).show();
+    }else if( clickID === "follow-me"){
+        showSettingToast("This feature is comming soon!", "Notice");
+    }else if ( clickID === "add-to-favorites"){
+        showSettingToast("This feature is comming soon!", "Notice");
+    }else if ( clickID === "interested-in-post"){
+        showSettingToast("You'll see more posts like this!", "Success");
+    }else if ( clickID === "not-interested-in-post"){
+        showSettingToast("You'll see less posts like this!", "Success");
+    }else if ( clickID === "copy-link"){
+        showSettingToast("This feature is comming soon!", "Notice");
+    }else if ( clickID === "block-user"){
+        showSettingToast("This feature is comming soon!", "Notice");
     }
 });
 

@@ -21,8 +21,7 @@
                 <div class="myText text-center">
                     <h1>Join Our Platform & share your Tweets</h1>
                     <a href="{{ url_for('auth.google_login') }}">
-                        <button><img src="https://imagepng.org/google-icone-icon/google-icon-5/" class="img-fluid">Sign up with Google</button>
-                    </a>
+ <button><img src="{{ url_for('static', filename='assets/googleLogo.png') }}" class="img-fluid">Sign up with Google</button>                    </a>
                     <button><img src="{{ url_for('static', filename='assets/appleLogo.png') }}" class="img-fluid">Sign up with Apple</button>
                     <h4>Or</h4>
                     <a href="{{ url_for('auth.signup', st=0)}}"><button>Create New Account</button></a>
@@ -46,7 +45,7 @@
             <li class="nav-item"><a href="{{ url_for('main.about') }}" class="nav-link px-2 text-body-secondary">About</a></li>
         </ul>
         <p class="text-center text-body-secondary">© 2026 coreXmanzoid, Inc</p>
-        <p class="text-center text-body-secondary">Built with <i class="bi bi-heart-fill" style="color: red;"></i> by coreXmanzoid</p>
+        <p class="text-center text-body-secondary">Built with ❤️ by <a href="https://www.instagram.com/corexmanzoid/" target="_blank" style="color: var(--accent); text-decoration: none;">@corexmanzoid</a> - <a href="https://www.instagram.com/em_hammad_ashraf/" target="_blank" style="color: var(--accent); text-decoration: none;">M. Hammad Ashraf</a> | Computer Science Student | The Islamia University of Bahawalpur</p>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
 

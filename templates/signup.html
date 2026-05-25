@@ -69,8 +69,7 @@
                     class="nav-link px-2 text-body-secondary">About</a></li>
         </ul>
         <p class="text-center text-body-secondary">© 2026 coreXmanzoid, Inc</p>
-        <p class="text-center text-body-secondary">Built with <i class="bi bi-heart-fill" style="color: red;"></i> by
-            coreXmanzoid</p>
+        <p class="text-center text-body-secondary">Built with ❤️ by <a href="https://www.instagram.com/corexmanzoid/" target="_blank" style="color: var(--accent); text-decoration: none;">@corexmanzoid</a> - <a href="https://www.instagram.com/em_hammad_ashraf/" target="_blank" style="color: var(--accent); text-decoration: none;">M. Hammad Ashraf</a> | Computer Science Student | The Islamia University of Bahawalpur</p>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -80,14 +79,6 @@
         if (birthDateInput) {
             birthDateInput.max = new Date().toISOString().split("T")[0];
         }
-    //     $('#signup-button').click(function () {
-    //         let button = $(this);
-    //         button.prop("disabled", true);
-    //         button.html(`
-    //     <span class="btn-loader"></span>
-    //     signing up...
-    // `);
-    //     });
     </script>
     <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
