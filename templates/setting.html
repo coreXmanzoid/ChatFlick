@@ -373,9 +373,12 @@
           </small>
           {% else %}
           <small class="text-muted d-block mt-2">
-            Enable this toggle, then allow browser notifications when prompted. On iPhone or iPad, add ChatFlick to your Home Screen first.
+            Enable this toggle, then allow browser notifications when prompted. On iPhone or iPad, add ChatFlick to your
+            Home Screen first.
           </small>
-          <button class="btn btn-sm btn-outline-primary mt-2 notifications-allow" type="button">Enable browser notifications</button>
+          <center>
+            <button class="mt-2 notifications-allow w-75" type="button">Enable browser notifications</button>
+          </center>
           {% endif %}
           <div class="field">
             <label>*Customize what type of activity triggers a notification</label>
@@ -619,9 +622,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <script>
     window.firebaseRuntimeConfig = {
-      firebaseEnabled: {{ firebase_enabled | default(false) | tojson }},
-      vapidKey: {{ fcm_vapid_key | default('') | tojson }},
-      firebaseConfig: {{ firebase_config | tojson }}
+      firebaseEnabled: {{ firebase_enabled | default (false) | tojson }},
+    vapidKey: { { fcm_vapid_key | default ('') | tojson } },
+    firebaseConfig: { { firebase_config | tojson } }
     };
   </script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>

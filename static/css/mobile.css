@@ -680,6 +680,135 @@ body {
     box-shadow: none;
 }
 
+.follow-list-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10060;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 18px 10px 0;
+    background: rgba(33, 27, 21, 0.36);
+    backdrop-filter: blur(5px);
+}
+
+.follow-list-overlay[hidden] {
+    display: none;
+}
+
+.follow-list-sheet {
+    width: min(100%, 540px);
+    height: min(86vh, 720px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 12px 18px;
+    border-radius: 22px 22px 0 0;
+    background: #DEDED1;
+    border: 1px solid rgba(70, 66, 59, 0.14);
+    box-shadow: 0 -18px 50px rgba(33, 27, 21, 0.22);
+    animation: mobileReportIn 0.24s ease both;
+}
+
+.follow-list-header {
+    display: grid;
+    grid-template-columns: 38px 1fr 38px;
+    align-items: center;
+    gap: 8px;
+}
+
+.follow-list-header h2 {
+    margin: 0;
+    color: #2e2a22;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.follow-list-close {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.58);
+    color: #F94818;
+    display: grid;
+    place-items: center;
+}
+
+.follow-list-search {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 13px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(70, 66, 59, 0.14);
+    color: #2e2a22;
+}
+
+.follow-list-search:focus-within {
+    border-color: rgba(249, 72, 24, 0.68);
+    box-shadow: 0 0 0 4px rgba(249, 72, 24, 0.12);
+}
+
+.follow-list-search i {
+    color: #F94818;
+    font-size: 17px;
+}
+
+.follow-list-search input {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #2e2a22;
+    font: inherit;
+    font-size: 0.95rem;
+}
+
+.follow-list-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2px 0 12px;
+}
+
+.follow-list-results .full-account {
+    align-items: center;
+    min-height: 66px;
+    margin: 0;
+    padding: 8px 2px;
+    border-bottom: 1px solid rgba(70, 66, 59, 0.1);
+}
+
+.follow-list-results .post-heading {
+    min-width: 0;
+    cursor: pointer;
+}
+
+.follow-list-results .post-heading h5 {
+    min-width: 0;
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.25;
+}
+
+.follow-list-results .post-heading span,
+.follow-list-results .post-heading strong {
+    font-size: 0.76rem;
+}
+
+.follow-list-empty {
+    margin: 8px 0 12px;
+    color: #8f8674;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+}
+
 .mobile-toast-stack {
     position: fixed;
     left: 12px;

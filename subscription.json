@@ -8,7 +8,7 @@
     "features": {
 
       "auth": {
-        "is_remember_me": false,
+        "is_remember_me": true,
         "session_lifetime_days": 1,
         "google_oauth": true
       },

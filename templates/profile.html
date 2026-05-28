@@ -100,12 +100,14 @@
             <div class="audience-box">
                 <strong
                     class="{% if user.get_setting('privacy-setting', 'show_status') %}followers{% endif %} {{user.id}}"
+                    data-user-id="{{ user.id }}"
                     style="color: #F94818;">
                     {{user.followers | length}} Followers
                 </strong>
 
                 <strong
-                    class="{% if user.get_setting('privacy-setting', 'show_status') %}following {% endif %} {{user.id}}">
+                    class="{% if user.get_setting('privacy-setting', 'show_status') %}following{% endif %} {{user.id}}"
+                    data-user-id="{{ user.id }}">
                     {{user.following | length}} Following
                 </strong>
             </div>

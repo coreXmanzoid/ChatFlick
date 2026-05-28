@@ -276,8 +276,15 @@ function initializeDynamicContent($root) {
 }
 
 function initializeOptionsToggle($root) {
-    const root = $root ? $root[0] : document;
-    const toggles = root === document ? document.querySelectorAll(".options-toggle") : root.querySelectorAll(".options-toggle");
+    let root = document;
+
+    if ($root && $root.length) {
+        root = $root[0];
+    } else if ($root instanceof Element) {
+        root = $root;
+    }
+
+    const toggles = root.querySelectorAll(".options-toggle");
 
     toggles.forEach(function (toggleBtn) {
         const menu = toggleBtn.closest(".post-options")?.querySelector(".options-menu");
@@ -288,13 +295,21 @@ function initializeOptionsToggle($root) {
         toggleBtn.__optionsToggleInitialized = true;
         toggleBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            menu.classList.toggle("show");
+            const isOpen = menu.classList.contains("show");
+
+            document.querySelectorAll(".options-menu.show").forEach(function (openMenu) {
+                openMenu.classList.remove("show");
+            });
+
+            if (!isOpen) {
+                menu.classList.add("show");
+            }
         });
     });
 }
 
 document.addEventListener("click", function (e) {
-    if (!e.target.closest(".post-options")) {
+    if (!e.target.closest(".post-options") && !e.target.closest(".options-menu")) {
         document.querySelectorAll(".options-menu.show").forEach(function (menu) {
             menu.classList.remove("show");
         });
@@ -422,7 +437,90 @@ function toggleMoreMenu() {
 function resetOverlay() {
     $(".fullpost-overlay").prop("hidden", true);
     $(".fullpost-box").empty();
-    $("body").css("overflow", "");
+    closeFollowListOverlay(false);
+    if ($("#mobileReportOverlay").prop("hidden")) {
+        $("body").css("overflow", "");
+    }
+}
+
+function setBodyScrollForOverlays() {
+    const hasOpenOverlay = !$(".fullpost-overlay").prop("hidden")
+        || !$("#mobileReportOverlay").prop("hidden")
+        || !$("#followListOverlay").prop("hidden");
+
+    $("body").css("overflow", hasOpenOverlay ? "hidden" : "");
+}
+
+function closeFollowListOverlay(updateScroll) {
+    $("#followListOverlay").prop("hidden", true);
+    $("#followListSearch").val("");
+    $(".follow-list-results").empty();
+    $(".follow-list-empty").prop("hidden", true);
+
+    if (updateScroll !== false) {
+        setBodyScrollForOverlays();
+    }
+}
+
+function filterFollowListAccounts(query) {
+    const normalizedQuery = (query || "").toLowerCase();
+    let visibleCount = 0;
+
+    $("#followListOverlay .full-account").each(function () {
+        const $account = $(this);
+        const matches = $account.text().toLowerCase().indexOf(normalizedQuery) !== -1;
+        $account.toggle(matches);
+
+        if (matches) {
+            visibleCount += 1;
+        }
+    });
+
+    const hasAccounts = $("#followListOverlay .full-account").length > 0;
+    $(".follow-list-empty").prop("hidden", !hasAccounts || visibleCount > 0);
+}
+
+function getAudienceAccountId($element) {
+    const dataUserId = parseInt($element.data("user-id"), 10);
+
+    if (dataUserId) {
+        return dataUserId;
+    }
+
+    const classUserId = ($element.attr("class") || "").split(/\s+/).find(function (className) {
+        return /^\d+$/.test(className);
+    });
+
+    return parseInt(classUserId || 0, 10);
+}
+
+function openFollowListOverlay(accountId, listType) {
+    const title = listType === "following" ? "Following" : "Followers";
+
+    if (!accountId) {
+        showMobileToast("Unable to find this account list.", "error");
+        return;
+    }
+
+    $("#followListTitle").text(title);
+    $("#followListSearch").val("");
+    $(".follow-list-empty").prop("hidden", true);
+    $(".follow-list-results").html('<div class="loader-wrapper"><span class="loader"></span></div>');
+    $("#followListOverlay").prop("hidden", false);
+    setBodyScrollForOverlays();
+
+    ajaxWithAbort("mobileFollowList", {
+        url: "/exploreAccounts/" + accountId + "/" + listType,
+        method: "GET",
+        success: function (response) {
+            injectHtmlResponse($(".follow-list-results"), response);
+            filterFollowListAccounts("");
+            $("#followListSearch").trigger("focus");
+        },
+        error: function () {
+            $(".follow-list-results").html('<div class="no-data text-center py-3 fs-6">Unable to load accounts</div>');
+        }
+    });
 }
 
 function openMobileReport(postId) {
@@ -441,9 +539,7 @@ function closeMobileReport() {
     $("#mobileReportOverlay").removeData("postid").prop("hidden", true);
     $("#mobile-report-category").val("No Reason Selected");
     $("#mobile-report-details").val("");
-    if ($(".fullpost-overlay").prop("hidden")) {
-        $("body").css("overflow", "");
-    }
+    setBodyScrollForOverlays();
 }
 
 function submitMobileReport() {
@@ -693,6 +789,7 @@ function markAsRead() {
         url: "/notifications/mark_read/" + userId,
         success: function () {
             checkForNotifications(userId);
+            $(".notifications .badge").remove();
         }
     });
 }
@@ -1016,16 +1113,63 @@ $(function () {
         }
     });
 
-    $(document).on("click", "#report-post", function (e) {
+    $(document).on("click", ".options-menu a", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        const postId = $(this).closest(".options-menu").data("postid")
-            || $(this).closest(".post, .post-detail").data("postid")
-            || $(".fullpost-box .post-detail").data("postid");
+
+        const clickID = $(this).attr("id");
+
+        if (clickID === "notification-settings") {
+            window.location.href = $(this).attr("href");
+            return;
+        }
+
         document.querySelectorAll(".options-menu.show").forEach(function (menu) {
             menu.classList.remove("show");
         });
-        openMobileReport(postId);
+
+        if ($(this).closest(".notification-options").length) {
+            if (clickID === "mark-notifications-read") {
+                markAsRead();
+                showMobileToast("Notifications marked as read.", "success");
+            } else if (clickID === "clear-notifications") {
+                $.ajax({
+                    url: "/notifications/clear",
+                    type: "POST",
+                    success: function () {
+                        showNotifications();
+                        checkForNotifications(getCurrentUserId());
+                        showMobileToast("Notifications cleared.", "success");
+                    },
+                    error: function () {
+                        showMobileToast("Unable to clear notifications right now.", "error");
+                    }
+                });
+            } else if (clickID === "refresh-notifications") {
+                showNotifications();
+            }
+
+            return;
+        }
+
+        if (clickID === "report-post") {
+            const postId = $(this).closest(".options-menu").data("postid")
+                || $(this).closest(".post, .post-detail").data("postid")
+                || $(".fullpost-box .post-detail").data("postid");
+            openMobileReport(postId);
+        } else if (clickID === "follow-me") {
+            showMobileToast("This feature is coming soon!", "info");
+        } else if (clickID === "add-to-favorites") {
+            showMobileToast("This feature is coming soon!", "info");
+        } else if (clickID === "interested-in-post") {
+            showMobileToast("You'll see more posts like this!", "success");
+        } else if (clickID === "not-interested-in-post") {
+            showMobileToast("You'll see less posts like this!", "success");
+        } else if (clickID === "copy-link") {
+            showMobileToast("This feature is coming soon!", "info");
+        } else if (clickID === "block-user") {
+            showMobileToast("This feature is coming soon!", "info");
+        }
     });
 
     $(document).on("click", ".mobile-report-close", function (e) {
@@ -1083,6 +1227,36 @@ $(function () {
     $(document).on("input", ".search input", function () {
         const query = $(this).val().trim();
         exploreAccounts(query ? "/exploreAccounts/0/" + encodeURIComponent(query) : "/exploreAccounts/0/random");
+    });
+
+    $(document).on("click", ".follow-list-close", function () {
+        closeFollowListOverlay();
+    });
+
+    $(document).on("click", "#followListOverlay", function (e) {
+        if (e.target === this) {
+            closeFollowListOverlay();
+        }
+    });
+
+    $(document).on("input", "#followListSearch", function () {
+        filterFollowListAccounts($(this).val());
+    });
+
+    $(document).on("keydown", function (e) {
+        if (e.key === "Escape" && !$("#followListOverlay").prop("hidden")) {
+            closeFollowListOverlay();
+        }
+    });
+
+    $(document).on("click", "#followListOverlay .post-heading", function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        const accountId = $(this).find("h5").data("accountid");
+        if (accountId) {
+            showProfile(accountId);
+        }
     });
 
     $(document).on("click", ".top-pages h6", function (e) {
@@ -1409,13 +1583,11 @@ $(function () {
     });
 
     $(document).on("click", ".followers", function () {
-        showSearch();
-        exploreAccounts("/exploreAccounts/" + $(this).attr("class").split(" ")[1] + "/followers");
+        openFollowListOverlay(getAudienceAccountId($(this)), "followers");
     });
 
     $(document).on("click", ".following", function () {
-        showSearch();
-        exploreAccounts("/exploreAccounts/" + $(this).attr("class").split(" ")[1] + "/following");
+        openFollowListOverlay(getAudienceAccountId($(this)), "following");
     });
 
     $(document).on("dblclick", ".post", showFullPost);

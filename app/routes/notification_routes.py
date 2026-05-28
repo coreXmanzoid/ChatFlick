@@ -234,6 +234,17 @@ def mark_as_read(user_id):
     return jsonify({"status": "success"})
 
 
+@notification_bp.route("/notifications/clear", methods=["POST"])
+@login_required
+def clear_notifications():
+    db.session.execute(
+        db.delete(Notification).where(Notification.recipient_id == current_user.id)
+    )
+    db.session.commit()
+
+    return jsonify({"status": "success"})
+
+
 @notification_bp.route("/check-notifications/<int:user_id>")
 @login_required
 def check_notifications(user_id):

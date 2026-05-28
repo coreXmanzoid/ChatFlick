@@ -344,6 +344,8 @@ function initializeNotificationsFragment($root) {
         return;
     }
 
+    initializeOptionsToggle($root);
+
     const permissionWarning = document.getElementById("notifications-permission");
     if (permissionWarning) {
         const pushIssue = typeof window.getPushSupportIssue === "function" ? window.getPushSupportIssue() : "";
@@ -575,13 +577,35 @@ function showPosts(state, id) {
 function markAsRead() {
     const userId = $(".notifications").data("userid");
 
+    if (!userId) {
+        return;
+    }
+
     ajaxWithAbort("markAsRead", {
         url: "/notifications/mark_read/" + userId,
         success: function () {
             checkForNotifications(getCurrentUserId());
+            $(".notifications .badge").remove();
         },
         error: function (err) {
             console.error("Error marking notifications as read:", err);
+        }
+    });
+}
+
+function loadNotifications() {
+    feedState.active = false;
+    $(".full-post").hide();
+    $(".notifications-tab").show().html('<div class="loader-wrapper"><span class="loader"></span></div>');
+    $(".explore-tab").hide();
+    $(".ai-bar").hide();
+
+    ajaxWithAbort("loadNotifications", {
+        url: "/notifications",
+        method: "GET",
+        success: function (response) {
+            injectHtmlResponse($(".notifications-tab"), response);
+            markAsRead();
         }
     });
 }
@@ -958,22 +982,15 @@ $(".switch-account-link").on("click", function () {
     }
 });
 
-$(".notifications-button").on("click", function () {
-    feedState.active = false;
-    $(".full-post").hide();
-    $(".notifications-tab").show().html('<div class="loader-wrapper"><span class="loader"></span></div>');
-    $(".explore-tab").hide();
-    $(".ai-bar").hide();
+$(".notifications-button").on("click", loadNotifications);
 
-    ajaxWithAbort("loadNotifications", {
-        url: "/notifications",
-        method: "GET",
-        success: function (response) {
-            injectHtmlResponse($(".notifications-tab"), response);
-            markAsRead();
-        }
+$(document).off("click.notificationsBack", ".notification-header .bi-arrow-left")
+    .on("click.notificationsBack", ".notification-header .bi-arrow-left", function (e) {
+        e.preventDefault();
+        $(".notifications-tab").hide();
+        $(".explore-tab").show();
+        $(".ai-bar").hide();
     });
-});
 
 $(".ai-button").on("click", function () {
     feedState.active = false;
@@ -1211,6 +1228,38 @@ $(document).off("click.postProfile", ".post-heading h5").on("click.postProfile",
 $(document).off("click.options-menu", ".options-menu a").on("click.options-menu", ".options-menu a", function (e) {
     e.stopPropagation();
     let clickID = $(this).attr("id");
+
+    if (clickID === "notification-settings") {
+        return;
+    }
+
+    if ($(this).closest(".notification-options").length) {
+        e.preventDefault();
+        $(".options-menu.show").removeClass("show");
+
+        if (clickID === "mark-notifications-read") {
+            markAsRead();
+            showSettingToast("Notifications marked as read.", "success");
+        } else if (clickID === "clear-notifications") {
+            $.ajax({
+                url: "/notifications/clear",
+                type: "POST",
+                success: function () {
+                    loadNotifications();
+                    checkForNotifications(getCurrentUserId());
+                    showSettingToast("Notifications cleared.", "success");
+                },
+                error: function () {
+                    showSettingToast("Unable to clear notifications right now.", "error");
+                }
+            });
+        } else if (clickID === "refresh-notifications") {
+            loadNotifications();
+        }
+
+        return;
+    }
+
     if (clickID === "report-post") {
         e.preventDefault();
         const postId = $(this).closest(".options-menu").data("postid")
@@ -1669,7 +1718,7 @@ function initializeOptionsToggle($root) {
 // Close on outside click
 document.addEventListener("click", function (e) {
 
-    if (!e.target.closest(".post-options")) {
+    if (!e.target.closest(".post-options") && !e.target.closest(".options-menu")) {
 
         document.querySelectorAll(".options-menu.show").forEach(function (menu) {
             menu.classList.remove("show");

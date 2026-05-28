@@ -1,16 +1,42 @@
-<div class="no-posts text-center d-flex align-items-center justify-content-center" style="min-height: 100vh;"
-    id="notifications-permission">
+<div class="no-posts text-center d-flex align-items-center justify-content-center" id="notifications-permission">
     <div>
         <i class="bi bi-inbox" style="font-size:48px;opacity:.3"></i>
         <h4 class="no-data mt-3">Notifications Permission Denied</h4>
-        <p class="text-muted px-3">Allow notifications to get updates about likes, comments, mentions, and followers.</p>
+        <p class="text-muted px-3">Allow notifications to get updates about likes, comments, mentions, and followers.
+        </p>
         <button class="notifications-allow w-50" type="button">Allow Notifications</button>
     </div>
 </div>
 <div class="notifications" data-userid="{{current_user.id}}">
     <div class="notification-header py-3">
         <h4 href=""><i class="bi bi-arrow-left" style="cursor: pointer;"></i>&nbsp;Notifications</h4>
-        <i class="bi bi-three-dots"></i>
+        <div class="notification-options post-options" id="notification-option">
+            <button class="options-toggle" type="button" aria-label="Notification options">
+                <i class="bi bi-three-dots"></i>
+            </button>
+
+            <div class="options-menu" data-userId="{{ current_user.id }}">
+                <a href="#" id="mark-notifications-read" class="option-item">
+                    Mark As Read
+                </a>
+                <hr>
+
+                <a href="#" id="clear-notifications" class="option-item delete">
+                    Clear All notifications
+                </a>
+                <hr>
+
+                <a href="#" id="refresh-notifications" class="option-item">
+                    Notification History
+                </a>
+                <hr>
+
+                <a href="{{ url_for('setting.setting', section='notifications-setting') }}" id="notification-settings" class="option-item">
+                    Notification Settings
+                </a>
+            </div>
+
+        </div>
     </div>
     {% if not notifications %}
     <div class="no-posts text-center d-flex align-items-center justify-content-center" style="min-height: 100vh;">
