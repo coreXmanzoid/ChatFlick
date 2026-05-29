@@ -7,6 +7,7 @@ from app.models.follows import Follow
 from app.services.cloudinary_service import CloudinaryService
 from app.decorators import verified_user
 from app.utils.subscription_manager import get_limit
+from app.routes.main_routes import is_spa_fragment_request, render_app_shell
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -50,6 +51,9 @@ def upload_profile(id):
 @profile_bp.route("/profile/<int:id>/about")
 @login_required
 def profile_about(id):
+    if not is_spa_fragment_request():
+        return render_app_shell()
+
     user = db.session.get(UserData, id)
 
     if not user:
@@ -60,6 +64,9 @@ def profile_about(id):
 @profile_bp.route("/profile/<int:id>")
 @login_required
 def profile(id):
+    if not is_spa_fragment_request():
+        return render_app_shell()
+
     # If id=0, show new post page
     if id == 0:
         return render_template("newPost.html")

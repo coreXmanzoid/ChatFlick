@@ -6,6 +6,7 @@ from app.services.ai_service import AIService
 from app.decorators import verified_user
 from app.utils.subscription_manager import get_limit, has_feature, is_unlimited
 from app.utils.time_utils import utc_now
+from app.routes.main_routes import is_spa_fragment_request, render_app_shell
 
 ai_bp = Blueprint("ai", __name__)
 
@@ -33,6 +34,9 @@ def _consume_ai_request(user):
 def manzoid_ai():
     if not has_feature(current_user, "ai", "ai_access"):
         return jsonify({"error": "Your plan does not include AI access"}), 403
+
+    if request.method == "GET" and not is_spa_fragment_request():
+        return render_app_shell()
     
     if request.method == "POST":
 

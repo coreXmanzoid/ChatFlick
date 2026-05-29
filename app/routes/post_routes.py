@@ -11,8 +11,15 @@ from app.models.comments import Comments
 from app.decorators import verified_user
 from app.utils.subscription_manager import get_limit, has_feature, is_unlimited
 from app.utils.time_utils import utc_iso_from
+from app.routes.main_routes import render_app_shell
 
 post_bp = Blueprint("post", __name__)
+
+
+@post_bp.route("/post/<int:post_id>")
+@login_required
+def post_permalink(post_id):
+    return render_app_shell()
 
 @post_bp.route("/send-mention-notifications", methods=["POST"])
 @login_required

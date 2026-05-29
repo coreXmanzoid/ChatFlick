@@ -14,6 +14,7 @@ from app.services.push_service import send_diagnostic_notification, send_notific
 from app.decorators import verified_user
 from app.utils.subscription_manager import get_limit, has_feature, is_unlimited
 from app.utils.time_utils import utc_iso_from, utc_now
+from app.routes.main_routes import is_spa_fragment_request, render_app_shell
 
 notification_bp = Blueprint("notifications", __name__)
 
@@ -194,6 +195,8 @@ def notification_diagnostic_push():
 @notification_bp.route("/notifications")
 @login_required
 def notifications():
+    if not is_spa_fragment_request():
+        return render_app_shell()
 
     history_days = get_limit(
         current_user, "notifications", "notification_history_days", 7

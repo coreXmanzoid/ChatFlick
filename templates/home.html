@@ -7,9 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ChatFlick">
     <link rel="manifest" href="{{ url_for('main.web_manifest') }}">
-    <title>coreXmanzoid</title>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/logo.png')}}" type="image/x-icon">
-    <!-- <link rel="shortcut icon" href="../static/assets/logo.png" type="image/x-icon"> -->
+    <title>ChatFlick</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/Logo_icon.png')}}" type="image/x-icon">
     <script>
         if (window.matchMedia("(max-width: 767px)").matches) {
             window.location.replace("{{ url_for('main.mobile_homepage') }}");
@@ -205,7 +204,7 @@
             };
         </script>
         <script src="{{ url_for('static', filename='js/firebase-client.js') }}?v=2026-05-24-1"></script>
-        <script src="{{ url_for('static', filename='js/home.js') }}?v=2026-05-09-1"></script>
+        <script src="{{ url_for('static', filename='js/home.js') }}?v=2026-05-29-hybrid-spa-1"></script>
 
 </body>
 

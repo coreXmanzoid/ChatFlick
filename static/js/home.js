@@ -73,6 +73,9 @@ function ajaxWithAbort(key, options) {
     const callerXhr = options.xhr;
 
     return $.ajax($.extend({}, options, {
+        headers: $.extend({
+            "X-ChatFlick-SPA": "1"
+        }, options.headers || {}),
         xhr: function () {
             const xhr = callerXhr ? callerXhr() : $.ajaxSettings.xhr();
             signal.addEventListener("abort", function () {
@@ -138,6 +141,10 @@ function getShareContext($btn) {
         postId: postId,
         text: text
     };
+}
+
+function getPostPermalink(postId) {
+    return new URL("/post/" + postId, window.location.origin).href;
 }
 
 async function sharePostContent(shareData) {
@@ -278,7 +285,7 @@ function renderMentions(selector) {
         mentions.forEach(function (mention) {
             const username = mention.username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const regex = new RegExp("@" + username + "\\b", "g");
-            text = text.replace(regex, '<span onclick="showProfile(' + mention.user_id + ')" class="mention" style="cursor: pointer;" title="View profile">@' + mention.username + "</span>");
+            text = text.replace(regex, '<span onclick="ChatFlickNav.navigate(\'/profile/' + mention.user_id + '\')" class="mention" style="cursor: pointer;" title="View profile">@' + mention.username + "</span>");
         });
 
         el.innerHTML = text;
@@ -403,6 +410,12 @@ function loadFragment(key, $target, url, loaderHtml) {
         method: "GET",
         success: function (response) {
             injectHtmlResponse($target, response);
+        },
+        error: function (jqXHR, textStatus) {
+            if (textStatus === "abort") {
+                return;
+            }
+            window.location.href = url;
         }
     });
 }
@@ -593,6 +606,154 @@ function markAsRead() {
     });
 }
 
+const ChatFlickNav = (function () {
+    const cache = new Map();
+    const maxEntries = 8;
+    let currentKey = null;
+    let restoring = false;
+
+    function keyFor(url) {
+        const parsed = new URL(url, window.location.origin);
+        return parsed.pathname + parsed.search;
+    }
+
+    function routeFor(url) {
+        const parsed = new URL(url, window.location.origin);
+        const path = parsed.pathname;
+        const profileMatch = path.match(/^\/profile\/(\d+)$/);
+
+        if (path === "/home" || path === "/mobile-home" || path === "/") {
+            return { name: "home", url: "/home" };
+        }
+        if (profileMatch) {
+            return { name: "profile", id: parseInt(profileMatch[1], 10), url: path };
+        }
+        if (path === "/notifications") {
+            return { name: "notifications", url: path };
+        }
+        if (path === "/Manzoid-AI") {
+            return { name: "ai", url: path };
+        }
+        if (path === "/liked") {
+            return { name: "liked", url: path };
+        }
+        if (path === "/explore") {
+            return { name: "explore", url: path };
+        }
+        const postMatch = path.match(/^\/post\/(\d+)$/);
+        if (postMatch) {
+            return { name: "post", id: parseInt(postMatch[1], 10), url: path };
+        }
+
+        return null;
+    }
+
+    function snapshot() {
+        if (!currentKey || restoring) {
+            return;
+        }
+
+        cache.set(currentKey, {
+            div2: $(".div2").html(),
+            div3: $(".div3").html(),
+            div5: $(".parent > .div5").first().html(),
+            fullPost: $(".full-post").html(),
+            display: {
+                div2: $(".div2").css("display"),
+                fullPost: $(".full-post").css("display")
+            },
+            feedState: $.extend({}, feedState),
+            scroll: {
+                windowX: window.scrollX,
+                windowY: window.scrollY,
+                div3: $(".div3").scrollTop()
+            }
+        });
+
+        while (cache.size > maxEntries) {
+            cache.delete(cache.keys().next().value);
+        }
+    }
+
+    function restore(key) {
+        const entry = cache.get(key);
+        if (!entry) {
+            return false;
+        }
+
+        restoring = true;
+        $(".div2").html(entry.div2).css("display", entry.display.div2 || "");
+        $(".div3").html(entry.div3);
+        $(".parent > .div5").first().html(entry.div5);
+        $(".full-post").html(entry.fullPost).css("display", entry.display.fullPost || "");
+        $.extend(feedState, entry.feedState || {});
+        initializeDynamicContent($(".div2, .div3, .div5"));
+        window.setTimeout(function () {
+            $(".div3").scrollTop(entry.scroll.div3 || 0);
+            window.scrollTo(entry.scroll.windowX || 0, entry.scroll.windowY || 0);
+            restoring = false;
+        }, 0);
+        return true;
+    }
+
+    function setHistory(route, replace) {
+        const state = { chatflick: true, url: route.url };
+        if (replace) {
+            window.history.replaceState(state, "", route.url);
+        } else {
+            window.history.pushState(state, "", route.url);
+        }
+    }
+
+    function navigate(url, options) {
+        const opts = options || {};
+        const route = routeFor(url);
+
+        if (!route) {
+            window.location.href = url;
+            return;
+        }
+
+        const nextKey = keyFor(route.url);
+        snapshot();
+
+        if (opts.fromPop && restore(nextKey)) {
+            currentKey = nextKey;
+            return;
+        }
+
+        renderRoute(route);
+        currentKey = nextKey;
+
+        if (!opts.fromPop) {
+            setHistory(route, opts.replace);
+        }
+    }
+
+    function start() {
+        window.history.scrollRestoration = "manual";
+        const route = routeFor(window.location.href) || { name: "home", url: "/home" };
+        currentKey = keyFor(route.url);
+        setHistory(route, true);
+        renderRoute(route);
+
+        window.addEventListener("popstate", function () {
+            const route = routeFor(window.location.href);
+            if (!route) {
+                window.location.reload();
+                return;
+            }
+            navigate(route.url, { fromPop: true });
+        });
+    }
+
+    return {
+        navigate: navigate,
+        start: start
+    };
+})();
+window.ChatFlickNav = ChatFlickNav;
+
 function loadNotifications() {
     feedState.active = false;
     $(".full-post").hide();
@@ -608,6 +769,41 @@ function loadNotifications() {
             markAsRead();
         }
     });
+}
+
+function showAiView() {
+    feedState.active = false;
+    $(".full-post").hide();
+    $(".div2").hide();
+    loadFragment(
+        "desktopAi",
+        $(".div3"),
+        "/Manzoid-AI",
+        '<div class="loader-wrapper"><span class="loader"></span></div>'
+    );
+    $(".explore-tab").hide();
+    $(".ai-bar").show();
+    $(".notifications-tab").hide();
+}
+
+function showExploreView() {
+    feedState.active = false;
+    $(".full-post").hide();
+    $(".ai-bar").hide();
+    $(".explore-tab").show();
+    $(".search input").trigger("focus");
+    $(".notifications-tab").hide();
+}
+
+function showLikedView() {
+    const userId = getCurrentUserId();
+    showPosts(3, userId);
+    exploreAccounts("/exploreAccounts/0/random");
+    $(".div2").hide();
+    $(".full-post").hide();
+    $(".ai-bar").hide();
+    $(".explore-tab").show();
+    $(".notifications-tab").hide();
 }
 
 function showProfile(userId) {
@@ -644,46 +840,86 @@ function Backtohome() {
     showPosts(0, 0);
 }
 
+function renderRoute(route) {
+    $(".nav a").removeClass("active link-dark").addClass("link-dark");
+
+    if (route.name === "home") {
+        $(".home-link").addClass("active").removeClass("link-dark");
+        Backtohome();
+        return;
+    }
+
+    if (route.name === "profile") {
+        $(".profile-link").addClass("active").removeClass("link-dark");
+        showProfile(route.id);
+        return;
+    }
+
+    if (route.name === "notifications") {
+        $(".notifications-button").addClass("active").removeClass("link-dark");
+        loadNotifications();
+        return;
+    }
+
+    if (route.name === "ai") {
+        $(".ai-button").addClass("active").removeClass("link-dark");
+        showAiView();
+        return;
+    }
+
+    if (route.name === "liked") {
+        $(".likes-button").addClass("active").removeClass("link-dark");
+        showLikedView();
+        return;
+    }
+
+    if (route.name === "explore") {
+        $(".explore-button").addClass("active").removeClass("link-dark");
+        showExploreView();
+        return;
+    }
+
+    if (route.name === "post") {
+        $(".home-link").addClass("active").removeClass("link-dark");
+        Backtohome();
+        openFullPostById(route.id);
+    }
+}
+
+function openFullPostById(postId) {
+    if (!postId || String(postId).indexOf("temp-") === 0) {
+        return;
+    }
+
+    initializeOptionsToggle();
+
+    $(".post").removeClass("active-post");
+    $('.post[data-postid="' + postId + '"]').addClass("active-post");
+    $(".explore-tab").hide();
+    $(".ai-bar").hide();
+    $(".full-post").css("display", "flex");
+    $(".notifications-tab").hide();
+    loadFragment(
+        "showComments",
+        $(".coreXmanzoid"),
+        "/FullPost/" + postId,
+        '<div class="loader-wrapper"><span class="loader"></span></div>'
+    );
+}
+
 function showFullPost(e) {
     if (e) {
         e.preventDefault();
     }
 
-    let $post = $(this).closest(".post");
-    if ($post.length === 0) {
-        $post = $(".post.active-post").first();
-    }
+    const $post = $(this).closest(".post");
+    const postId = $post.length ? $post.data("postid") : $(".post.active-post").first().data("postid");
 
-    if ($post.length === 0) {
-        $(".explore-tab").show();
-        $(".full-post").hide();
-        $(".notifications-tab").hide();
+    if (!postId || String(postId).indexOf("temp-") === 0) {
         return;
     }
 
-    const postId = $post.data("postid");
-    const activePost = $post.hasClass("active-post");
-    initializeOptionsToggle();
-
-    $(".post").removeClass("active-post");
-
-    if (!activePost) {
-        $post.addClass("active-post");
-        $(".explore-tab").hide();
-        $(".ai-bar").hide();
-        $(".full-post").css("display", "flex");
-        $(".notifications-tab").hide();
-        loadFragment(
-            "showComments",
-            $(".coreXmanzoid"),
-            "/comments/" + postId,
-            '<div class="loader-wrapper"><span class="loader"></span></div>'
-        );
-    } else {
-        $post.removeClass("active-post");
-        $(".explore-tab").show();
-        $(".full-post").hide();
-    }
+    ChatFlickNav.navigate("/post/" + postId);
 }
 
 function sendNotification({
@@ -824,7 +1060,7 @@ function submitComment() {
     );
 
     $.ajax({
-        url: "/comments/" + postId,
+        url: "/FullPost/" + postId,
         method: "POST",
         contentType: "application/json",
         data: JSON.stringify({
@@ -922,8 +1158,8 @@ function checkForNotifications(id) {
 }
 
 exploreAccounts("/exploreAccounts/0/random");
-showPosts(0, 0);
 initializeDynamicContent($(document.body));
+ChatFlickNav.start();
 
 $(".search input").on("input", function () {
     const query = $(this).val();
@@ -937,6 +1173,37 @@ $(".search input").on("input", function () {
 $(".nav li a").on("click", function () {
     $(".nav a").removeClass("active link-dark").addClass("link-dark");
     $(this).addClass("active").removeClass("link-dark");
+});
+
+$(document).on("click.hybridLinks", "a[href]", function (e) {
+    const href = $(this).attr("href");
+
+    if (
+        e.defaultPrevented ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey ||
+        $(this).attr("target") ||
+        $(this).attr("download") ||
+        !href ||
+        href === "#" ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:")
+    ) {
+        return;
+    }
+
+    const url = new URL(href, window.location.origin);
+    if (url.origin !== window.location.origin) {
+        return;
+    }
+
+    const path = url.pathname + url.search;
+    if (/^\/(home|mobile-home|profile\/\d+|post\/\d+|notifications|Manzoid-AI|liked|explore)(\?|$)/.test(path)) {
+        e.preventDefault();
+        ChatFlickNav.navigate(path);
+    }
 });
 
 $(".verification-box button").on("click", function () {
@@ -982,7 +1249,10 @@ $(".switch-account-link").on("click", function () {
     }
 });
 
-$(".notifications-button").on("click", loadNotifications);
+$(".notifications-button").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/notifications");
+});
 
 $(document).off("click.notificationsBack", ".notification-header .bi-arrow-left")
     .on("click.notificationsBack", ".notification-header .bi-arrow-left", function (e) {
@@ -992,49 +1262,38 @@ $(document).off("click.notificationsBack", ".notification-header .bi-arrow-left"
         $(".ai-bar").hide();
     });
 
-$(".ai-button").on("click", function () {
-    feedState.active = false;
-    $(".full-post").hide();
-    $(".div2").hide();
-    $(".div3").html('<div class="loader-wrapper"><span class="loader"></span></div>');
-    $(".div3").load("/Manzoid-AI");
-    $(".explore-tab").hide();
-    $(".ai-bar").show();
-    $(".notifications-tab").hide();
+$(".ai-button").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/Manzoid-AI");
 });
 
-$(".post-button").on("click", function () {
-    Backtohome();
+$(".post-button").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/home");
     setTimeout(function () {
         $("textarea[name='post-input']").trigger("focus");
     }, 150);
 });
 
-$(".explore-button").on("click", function () {
-    feedState.active = false;
-    $(".full-post").hide();
-    $(".ai-bar").hide();
-    $(".explore-tab").show();
-    $(".search input").trigger("focus");
-    $(".notifications-tab").hide();
+$(".explore-button").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/explore");
 });
 
-$(".likes-button").on("click", function () {
-    const userId = getCurrentUserId();
-    showPosts(3, userId);
-    exploreAccounts("/exploreAccounts/0/random");
-    $(".div2").hide();
-    $(".full-post").hide();
-    $(".ai-bar").hide();
-    $(".explore-tab").show();
-    $(".notifications-tab").hide();
+$(".likes-button").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/liked");
 });
 
-$(".profile-link").on("click", function () {
-    showProfile(getCurrentUserId());
+$(".profile-link").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/profile/" + getCurrentUserId());
 });
 
-$(".home-link").on("click", Backtohome);
+$(".home-link").on("click", function (e) {
+    e.preventDefault();
+    ChatFlickNav.navigate("/home");
+});
 
 $(window).on("scroll.feedInfinite", maybeLoadMorePosts);
 $(".div3").on("scroll.feedInfinite", maybeLoadMorePosts);
@@ -1221,7 +1480,7 @@ $(document).off("click.showFullPost", ".comment").on("click.showFullPost", ".com
 $(document).off("click.postProfile", ".post-heading h5").on("click.postProfile", ".post-heading h5", function () {
     const profileId = $(this).data("userid");
     if (profileId) {
-        showProfile(profileId);
+        ChatFlickNav.navigate("/profile/" + profileId);
     }
 });
 
@@ -1274,7 +1533,16 @@ $(document).off("click.options-menu", ".options-menu a").on("click.options-menu"
     }else if ( clickID === "not-interested-in-post"){
         showSettingToast("You'll see less posts like this!", "Success");
     }else if ( clickID === "copy-link"){
-        showSettingToast("This feature is comming soon!", "Notice");
+        e.preventDefault();
+        const postId = $(this).closest(".options-menu").data("postid")
+            || $(this).closest(".post, .post-detail").data("postid")
+            || $(".post-detail").data("postid");
+        if (postId && navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(getPostPermalink(postId));
+            showSettingToast("Post link copied to clipboard.", "success");
+        } else if (postId) {
+            window.prompt("Copy post link", getPostPermalink(postId));
+        }
     }else if ( clickID === "block-user"){
         showSettingToast("This feature is comming soon!", "Notice");
     }
@@ -1556,7 +1824,7 @@ $(document).off("click.sharePost", ".share, .shares").on("click.sharePost", ".sh
     const context = getShareContext($btn);
     const postId = context.postId;
     const text = context.text || "Check out this post on ChatFlick";
-    const url = "https://ChatFlick.pythonanywhere.com";
+    const url = getPostPermalink(postId);
 
     if (!postId || String(postId).indexOf("temp-") === 0) {
         console.warn("Share aborted: invalid post id", postId);
@@ -1659,7 +1927,16 @@ $(document).off("click.likeComment", ".like-comment").on("click.likeComment", ".
     });
 });
 
-$(document).off("click.commentBack", ".back-post > i").on("click.commentBack", ".back-post > i", showFullPost);
+$(document).off("click.commentBack", ".back-post > i").on("click.commentBack", ".back-post > i", function (e) {
+    e.preventDefault();
+    if (/^\/post\/\d+$/.test(window.location.pathname) && window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+    $(".post").removeClass("active-post");
+    $(".explore-tab").show();
+    $(".full-post").hide();
+});
 $(document).off("click.submitComment", "#submitComment").on("click.submitComment", "#submitComment", submitComment);
 $(document).off("keydown.submitComment", ".my-comment input").on("keydown.submitComment", ".my-comment input", function (e) {
     if (e.key === "Enter") {

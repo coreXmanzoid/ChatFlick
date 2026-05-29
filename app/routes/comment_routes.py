@@ -5,7 +5,7 @@ from app.services.comment_service import CommentService
 
 comment_bp = Blueprint("comment", __name__)
 
-@comment_bp.route("/comments/<int:post_id>", methods=["GET", "POST"])
+@comment_bp.route("/FullPost/<int:post_id>", methods=["GET", "POST"])
 @login_required
 @verified_user
 def comments(post_id):

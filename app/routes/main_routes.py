@@ -329,6 +329,36 @@ def is_mobile_request():
     return re.search(mobile_pattern, user_agent, re.IGNORECASE) is not None
 
 
+def is_spa_fragment_request():
+    return (
+        request.headers.get("X-ChatFlick-SPA") == "1"
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    )
+
+
+def render_app_shell():
+    is_user_verified = current_user.status not in [
+        "UNVERIFIED",
+        "BANNED",
+        "BLOCKED",
+        "RESTRICTED",
+        "DEACTIVATED",
+    ]
+    mobile_accounts = AccountService.random_accounts()
+
+    if is_mobile_request():
+        return render_template(
+            "mobile-home.html",
+            is_user_verified=is_user_verified,
+            accounts=mobile_accounts,
+        )
+
+    return render_template(
+        "home.html",
+        is_user_verified=is_user_verified,
+    )
+
+
 @main_bp.route("/admin/backup/sqlite-download", methods=["GET"])
 @login_required
 @verified_user
@@ -432,113 +462,170 @@ def terms_of_service():
     return render_template("termsOfService.html")
 
 
+
 @main_bp.route("/manifest.webmanifest")
 def web_manifest():
-    firebase_config = get_firebase_web_config()
-    sender_id = firebase_config.get("messagingSenderId", "")
-    icon_url = url_for("static", filename="assets/logo.png", _external=True)
 
     manifest = {
-        "name": "ChatFlick",
+        "name": "ChatFlick by coreXmanzoid",
         "short_name": "ChatFlick",
-        "description": "ChatFlick social notifications and messaging",
-        "start_url": "/home",
+        "description": "Modern social messaging and notifications platform",
+        "start_url": "/",
         "scope": "/",
         "display": "standalone",
+        "display_override": [
+            "window-controls-overlay",
+            "standalone"
+        ],
+        "orientation": "portrait",
         "background_color": "#ffffff",
-        "theme_color": "#F94818",
-        "gcm_sender_id": sender_id,
+        "theme_color": "#000000",
+
+        # Better app categorization
+        "categories": [
+            "social",
+            "communication",
+            "messaging"
+        ],
+
+        # Better installability
+        "prefer_related_applications": False,
+
+        # App icons
         "icons": [
             {
-                "src": icon_url,
+                "src": url_for(
+                    "static",
+                    filename="icons/icon-192.png"
+                ),
                 "sizes": "192x192",
                 "type": "image/png",
-                "purpose": "any",
+                "purpose": "any maskable"
             },
             {
-                "src": icon_url,
+                "src": url_for(
+                    "static",
+                    filename="icons/icon-512.png"
+                ),
                 "sizes": "512x512",
                 "type": "image/png",
-                "purpose": "any",
-            },
+                "purpose": "any maskable"
+            }
         ],
+
+        # Optional quick shortcuts
+        "shortcuts": [
+            {
+                "name": "Home",
+                "short_name": "Home",
+                "url": "/home",
+                "icons": [
+                    {
+                        "src": url_for(
+                            "static",
+                            filename="icons/icon-192.png"
+                        ),
+                        "sizes": "192x192"
+                    }
+                ]
+            },
+            {
+                "name": "Messages",
+                "short_name": "Messages",
+                "url": "/messages",
+                "icons": [
+                    {
+                        "src": url_for(
+                            "static",
+                            filename="icons/icon-192.png"
+                        ),
+                        "sizes": "192x192"
+                    }
+                ]
+            }
+        ]
     }
 
-    response = make_response(json.dumps(manifest))
-    response.headers["Content-Type"] = "application/manifest+json; charset=utf-8"
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    return response
+    return jsonify(manifest)
 
+
+@main_bp.route("/service-worker.js")
+def service_worker():
+    return send_from_directory(
+        "static",
+        "service-worker.js",
+        mimetype="application/javascript"
+    )
 
 @main_bp.route("/firebase-messaging-sw.js")
 def firebase_messaging_sw():
     firebase_config = json.dumps(get_firebase_web_config())
     script = f"""
-importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
+    importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
+    importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
 
-if (!firebase.apps.length) {{
-    firebase.initializeApp({firebase_config});
-}}
-
-const messaging = firebase.messaging();
-
-function getNotificationPayload(payload) {{
-    const notification = payload && payload.notification ? payload.notification : {{}};
-    const data = payload && payload.data ? payload.data : {{}};
-    return {{
-        title: notification.title || data.title || "ChatFlick",
-        body: notification.body || data.body || "",
-        icon: notification.icon || data.icon || "/static/assets/logo.png",
-        data: data
-    }};
-}}
-
-messaging.onBackgroundMessage(function (payload) {{
-    if (payload && payload.notification) {{
-        return;
+    if (!firebase.apps.length) {{
+        firebase.initializeApp({firebase_config});
     }}
 
-    const notification = getNotificationPayload(payload);
-    const tag = notification.data && notification.data.type
-        ? notification.data.type + "_" + (notification.data.identifier || "")
-        : "chatflick_general";
+    const messaging = firebase.messaging();
 
-    return self.registration.showNotification(notification.title, {{
-        body: notification.body,
-        icon: notification.icon,
-        badge: "/static/assets/logo.png",
-        data: notification.data,
-        tag: tag,
-        renotify: true
+    function getNotificationPayload(payload) {{
+        const notification = payload && payload.notification ? payload.notification : {{}};
+        const data = payload && payload.data ? payload.data : {{}};
+        return {{
+            title: notification.title || data.title || "ChatFlick",
+            body: notification.body || data.body || "",
+            icon: notification.icon || data.icon || "/static/assets/logo.png",
+            data: data
+        }};
+    }}
+
+    messaging.onBackgroundMessage(function (payload) {{
+        if (payload && payload.notification) {{
+            return;
+        }}
+
+        const notification = getNotificationPayload(payload);
+        const tag = notification.data && notification.data.type
+            ? notification.data.type + "_" + (notification.data.identifier || "")
+            : "chatflick_general";
+
+        return self.registration.showNotification(notification.title, {{
+            body: notification.body,
+            icon: notification.icon,
+            badge: "/static/assets/logo.png",
+            data: notification.data,
+            tag: tag,
+            renotify: true
+        }});
     }});
-}});
 
-self.addEventListener("notificationclick", function (event) {{
-    event.notification.close();
-    const targetUrl = event.notification.data && event.notification.data.url
-        ? event.notification.data.url
-        : "/home";
-    const absoluteTargetUrl = new URL(targetUrl, self.location.origin).href;
+    self.addEventListener("notificationclick", function (event) {{
+        event.notification.close();
+        const targetUrl = event.notification.data && event.notification.data.url
+            ? event.notification.data.url
+            : "/home";
+        const absoluteTargetUrl = new URL(targetUrl, self.location.origin).href;
 
-    event.waitUntil(
-        clients.matchAll({{ type: "window", includeUncontrolled: true }}).then(function (clientList) {{
-            for (const client of clientList) {{
-                if (client.url === absoluteTargetUrl && "focus" in client) return client.focus();
-            }}
-            if (clients.openWindow) return clients.openWindow(targetUrl);
-        }})
-    );
-}});
+        event.waitUntil(
+            clients.matchAll({{ type: "window", includeUncontrolled: true }}).then(function (clientList) {{
+                for (const client of clientList) {{
+                    if (client.url === absoluteTargetUrl && "focus" in client) return client.focus();
+                }}
+                if (clients.openWindow) return clients.openWindow(targetUrl);
+            }})
+        );
+    }});
 
-self.addEventListener("install", function () {{
-    self.skipWaiting();
-}});
+    self.addEventListener("install", function () {{
+        self.skipWaiting();
+    }});
 
-self.addEventListener("activate", function (event) {{
-    event.waitUntil(self.clients.claim());
-}});
-""".lstrip()
+    self.addEventListener("activate", function (event) {{
+        event.waitUntil(self.clients.claim());
+    }});
+    """.lstrip()
     response = make_response(script)
     response.headers["Content-Type"] = "application/javascript; charset=utf-8"
     response.headers["Service-Worker-Allowed"] = "/"
@@ -549,21 +636,19 @@ self.addEventListener("activate", function (event) {{
 @main_bp.route("/home", methods=["GET", "POST"])
 @login_required
 def homepage():
+    return render_app_shell()
 
-    is_user_verified = current_user.status not in ["UNVERIFIED", "BANNED", "BLOCKED", "RESTRICTED", "DEACTIVATED"]
-    mobile_accounts = AccountService.random_accounts()
 
-    if is_mobile_request():
-        return render_template(
-            "mobile-home.html",
-            is_user_verified=is_user_verified,
-            accounts=mobile_accounts,
-        )
+@main_bp.route("/explore")
+@login_required
+def explore():
+    return render_app_shell()
 
-    return render_template(
-        "home.html",
-        is_user_verified=is_user_verified
-    )
+
+@main_bp.route("/liked")
+@login_required
+def liked_posts():
+    return render_app_shell()
 
 
 @main_bp.route("/mobile-home", methods=["GET", "POST"])

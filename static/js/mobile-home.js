@@ -57,6 +57,9 @@ function ajaxWithAbort(key, options) {
     const callerXhr = options.xhr;
 
     return $.ajax($.extend({}, options, {
+        headers: $.extend({
+            "X-ChatFlick-SPA": "1"
+        }, options.headers || {}),
         xhr: function () {
             const xhr = callerXhr ? callerXhr() : $.ajaxSettings.xhr();
             signal.addEventListener("abort", function () {
@@ -91,6 +94,10 @@ function getCurrentUserId() {
     }
 
     return mobileCurrentUserId || foundUserId;
+}
+
+function getPostPermalink(postId) {
+    return new URL("/post/" + postId, window.location.origin).href;
 }
 
 function getTextNode($element) {
@@ -223,7 +230,7 @@ function renderMentions(selector) {
         mentions.forEach(function (mention) {
             const username = mention.username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const regex = new RegExp("@" + username + "\\b", "g");
-            text = text.replace(regex, '<span onclick="showProfile(' + mention.user_id + ')" class="mention" style="cursor: pointer;" title="View profile">@' + mention.username + "</span>");
+            text = text.replace(regex, '<span onclick="ChatFlickMobileNav.navigate(\'/profile/' + mention.user_id + '\')" class="mention" style="cursor: pointer;" title="View profile">@' + mention.username + "</span>");
         });
 
         el.innerHTML = text;
@@ -332,9 +339,164 @@ function loadFragment(key, $target, url, loaderHtml) {
         method: "GET",
         success: function (response) {
             injectHtmlResponse($target, response);
+        },
+        error: function (jqXHR, textStatus) {
+            if (textStatus === "abort") {
+                return;
+            }
+            window.location.href = url;
         }
     });
 }
+
+const ChatFlickMobileNav = (function () {
+    const cache = new Map();
+    const maxEntries = 8;
+    let currentKey = null;
+    let restoring = false;
+
+    function keyFor(url) {
+        const parsed = new URL(url, window.location.origin);
+        return parsed.pathname + parsed.search;
+    }
+
+    function routeFor(url) {
+        const parsed = new URL(url, window.location.origin);
+        const path = parsed.pathname;
+        const profileMatch = path.match(/^\/profile\/(\d+)$/);
+
+        if (path === "/home" || path === "/mobile-home" || path === "/") {
+            return { name: "home", url: "/mobile-home" };
+        }
+        if (profileMatch) {
+            return { name: "profile", id: parseInt(profileMatch[1], 10), url: path };
+        }
+        if (path === "/notifications") {
+            return { name: "notifications", url: path };
+        }
+        if (path === "/Manzoid-AI") {
+            return { name: "ai", url: path };
+        }
+        if (path === "/liked") {
+            return { name: "liked", url: path };
+        }
+        if (path === "/explore") {
+            return { name: "search", url: path };
+        }
+        const postMatch = path.match(/^\/post\/(\d+)$/);
+        if (postMatch) {
+            return { name: "post", id: parseInt(postMatch[1], 10), url: path };
+        }
+
+        return null;
+    }
+
+    function snapshot() {
+        if (!currentKey || restoring) {
+            return;
+        }
+
+        cache.set(currentKey, {
+            postSection: $(".post-section").html(),
+            feedPost: $("#feed-post").html(),
+            accountsHidden: $(".accounts-row").prop("hidden"),
+            moreHidden: $(".more-menu-overlay").prop("hidden"),
+            activeTab: $(".navigation .list.active .text").text().trim(),
+            mobileFeedState: $.extend({}, mobileFeedState),
+            scroll: {
+                windowX: window.scrollX,
+                windowY: window.scrollY,
+                feed: $(".feed-preview").scrollTop()
+            }
+        });
+
+        while (cache.size > maxEntries) {
+            cache.delete(cache.keys().next().value);
+        }
+    }
+
+    function restore(key) {
+        const entry = cache.get(key);
+        if (!entry) {
+            return false;
+        }
+
+        restoring = true;
+        resetOverlay();
+        $(".post-section").html(entry.postSection);
+        $("#feed-post").html(entry.feedPost);
+        $(".accounts-row").prop("hidden", entry.accountsHidden).toggle(!entry.accountsHidden);
+        $(".more-menu-overlay").prop("hidden", entry.moreHidden);
+        $.extend(mobileFeedState, entry.mobileFeedState || {});
+        if (entry.activeTab) {
+            setActiveTab(entry.activeTab);
+        }
+        initializeDynamicContent($(".post-section, #feed-post"));
+        window.setTimeout(function () {
+            $(".feed-preview").scrollTop(entry.scroll.feed || 0);
+            window.scrollTo(entry.scroll.windowX || 0, entry.scroll.windowY || 0);
+            restoring = false;
+        }, 0);
+        return true;
+    }
+
+    function setHistory(route, replace) {
+        const state = { chatflick: true, url: route.url };
+        if (replace) {
+            window.history.replaceState(state, "", route.url);
+        } else {
+            window.history.pushState(state, "", route.url);
+        }
+    }
+
+    function navigate(url, options) {
+        const opts = options || {};
+        const route = routeFor(url);
+
+        if (!route) {
+            window.location.href = url;
+            return;
+        }
+
+        const nextKey = keyFor(route.url);
+        snapshot();
+
+        if (opts.fromPop && restore(nextKey)) {
+            currentKey = nextKey;
+            return;
+        }
+
+        renderMobileRoute(route);
+        currentKey = nextKey;
+
+        if (!opts.fromPop) {
+            setHistory(route, opts.replace);
+        }
+    }
+
+    function start() {
+        window.history.scrollRestoration = "manual";
+        const route = routeFor(window.location.href) || { name: "home", url: "/mobile-home" };
+        currentKey = keyFor(route.url);
+        setHistory(route, true);
+        renderMobileRoute(route);
+
+        window.addEventListener("popstate", function () {
+            const route = routeFor(window.location.href);
+            if (!route) {
+                window.location.reload();
+                return;
+            }
+            navigate(route.url, { fromPop: true });
+        });
+    }
+
+    return {
+        navigate: navigate,
+        start: start
+    };
+})();
+window.ChatFlickMobileNav = ChatFlickMobileNav;
 
 function getLoadedPostIds($target) {
     return $target.find(".post").map(function () {
@@ -778,6 +940,43 @@ function showAi() {
     );
 }
 
+function renderMobileRoute(route) {
+    if (route.name === "home") {
+        showHome();
+        return;
+    }
+
+    if (route.name === "profile") {
+        showProfile(route.id);
+        return;
+    }
+
+    if (route.name === "search") {
+        showSearch();
+        return;
+    }
+
+    if (route.name === "notifications") {
+        showNotifications();
+        return;
+    }
+
+    if (route.name === "ai") {
+        showAi();
+        return;
+    }
+
+    if (route.name === "liked") {
+        showLikedPosts();
+        return;
+    }
+
+    if (route.name === "post") {
+        showHome();
+        openFullPostById(route.id);
+    }
+}
+
 function markAsRead() {
     const userId = $(".notifications").data("userid") || getCurrentUserId();
 
@@ -952,7 +1151,7 @@ function submitComment() {
     );
 
     $.ajax({
-        url: "/comments/" + postId,
+        url: "/FullPost/" + postId,
         method: "POST",
         contentType: "application/json",
         data: JSON.stringify({
@@ -1002,29 +1201,36 @@ function submitComment() {
     validatePostFeatures(postContent, commentMentions);
 }
 
-function showFullPost(e) {
-    if (e) {
-        e.preventDefault();
-    }
-
-    const $post = $(this).closest(".post");
-    const postId = $post.data("postid");
-
+function openFullPostById(postId) {
     if (!postId || String(postId).indexOf("temp-") === 0) {
         return;
     }
 
     $(".post").removeClass("active-post");
-    $post.addClass("active-post");
+    $('.post[data-postid="' + postId + '"]').addClass("active-post");
     $(".fullpost-overlay").prop("hidden", false);
     $("body").css("overflow", "hidden");
 
     loadFragment(
         "mobileComments",
         $(".fullpost-box"),
-        "/comments/" + postId,
+        "/FullPost/" + postId,
         '<div class="loader-wrapper"><span class="loader"></span></div>'
     );
+}
+
+function showFullPost(e) {
+    if (e) {
+        e.preventDefault();
+    }
+
+    const postId = $(this).closest(".post").data("postid");
+
+    if (!postId || String(postId).indexOf("temp-") === 0) {
+        return;
+    }
+
+    ChatFlickMobileNav.navigate("/post/" + postId);
 }
 
 function addMessage(text, sender) {
@@ -1070,7 +1276,7 @@ function sendMessage() {
 }
 
 $(function () {
-    showHome();
+    ChatFlickMobileNav.start();
     $(window).on("scroll.mobileFeedInfinite", maybeLoadMorePosts);
     $(".feed-preview").on("scroll.mobileFeedInfinite", maybeLoadMorePosts);
 
@@ -1079,15 +1285,15 @@ $(function () {
         const label = $(this).find(".text").text().trim();
 
         if (label === "Home") {
-            showHome();
+            ChatFlickMobileNav.navigate("/mobile-home");
         } else if (label === "Search") {
-            showSearch();
+            ChatFlickMobileNav.navigate("/explore");
         } else if (label === "More") {
             toggleMoreMenu();
         } else if (label === "FlickAI") {
-            showAi();
+            ChatFlickMobileNav.navigate("/Manzoid-AI");
         } else if (label === "Profile") {
-            showProfile(getCurrentUserId());
+            ChatFlickMobileNav.navigate("/profile/" + getCurrentUserId());
         }
     });
 
@@ -1102,7 +1308,7 @@ $(function () {
     });
 
     $(document).on("click", ".more-menu-item[data-more-action='liked']", function () {
-        showLikedPosts();
+        ChatFlickMobileNav.navigate("/liked");
     });
 
     $(document).on("click", ".more-menu-item[data-more-action='switch']", function () {
@@ -1110,6 +1316,37 @@ $(function () {
             window.location.href = "/logout/2";
         } else {
             setMoreMenuVisible(false);
+        }
+    });
+
+    $(document).on("click.hybridLinks", "a[href]", function (e) {
+        const href = $(this).attr("href");
+
+        if (
+            e.defaultPrevented ||
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            $(this).attr("target") ||
+            $(this).attr("download") ||
+            !href ||
+            href === "#" ||
+            href.startsWith("mailto:") ||
+            href.startsWith("tel:")
+        ) {
+            return;
+        }
+
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) {
+            return;
+        }
+
+        const path = url.pathname + url.search;
+        if (/^\/(home|mobile-home|profile\/\d+|post\/\d+|notifications|Manzoid-AI|liked|explore)(\?|$)/.test(path)) {
+            e.preventDefault();
+            ChatFlickMobileNav.navigate(path);
         }
     });
 
@@ -1166,7 +1403,15 @@ $(function () {
         } else if (clickID === "not-interested-in-post") {
             showMobileToast("You'll see less posts like this!", "success");
         } else if (clickID === "copy-link") {
-            showMobileToast("This feature is coming soon!", "info");
+            const postId = $(this).closest(".options-menu").data("postid")
+                || $(this).closest(".post, .post-detail").data("postid")
+                || $(".fullpost-box .post-detail").data("postid");
+            if (postId && navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(getPostPermalink(postId));
+                showMobileToast("Post link copied to clipboard.", "success");
+            } else if (postId) {
+                window.prompt("Copy post link", getPostPermalink(postId));
+            }
         } else if (clickID === "block-user") {
             showMobileToast("This feature is coming soon!", "info");
         }
@@ -1188,7 +1433,9 @@ $(function () {
         submitMobileReport();
     });
 
-    $("#notification-icon").on("click", showNotifications);
+    $("#notification-icon").on("click", function () {
+        ChatFlickMobileNav.navigate("/notifications");
+    });
 
     $(document).on("click", "#verifyBtn", function () {
         const userId = getCurrentUserId();
@@ -1255,7 +1502,7 @@ $(function () {
 
         const accountId = $(this).find("h5").data("accountid");
         if (accountId) {
-            showProfile(accountId);
+            ChatFlickMobileNav.navigate("/profile/" + accountId);
         }
     });
 
@@ -1363,7 +1610,7 @@ $(function () {
     $(document).on("click", ".post-heading h5", function () {
         const profileId = $(this).data("userid") || $(this).data("accountid");
         if (profileId) {
-            showProfile(profileId);
+            ChatFlickMobileNav.navigate("/profile/" + profileId);
         }
     });
 
@@ -1488,7 +1735,7 @@ $(function () {
     $(document).on("click", ".accounts-row .account", function () {
         const profileId = $(this).data("accountid");
         if (profileId) {
-            showProfile(profileId);
+            ChatFlickMobileNav.navigate("/profile/" + profileId);
         }
     });
 
@@ -1686,10 +1933,11 @@ $(function () {
         const postId = $container.data("postid");
         const text = $container.find(".post-content .content").first().text().trim();
         const username = $container.find(".post-heading h5 span").first().text().trim().replace(/^@/, "");
-        const url = "https://ChatFlick.pythonanywhere.com";
+        const url = getPostPermalink(postId);
         const shareData = {
             title: "ChatFlick Post",
-            text: buildShareText(username, text, url)
+            text: buildShareText(username, text, url),
+            url: url
         };
 
         let shareDone;
