@@ -60,7 +60,7 @@ function getNotificationPayload(payload) {
     return {
         title: notification.title || data.title || "ChatFlick",
         body: notification.body || data.body || "",
-        icon: notification.icon || data.icon || "/static/assets/logo.png",
+        icon: notification.icon || data.icon || "/static/icons/icon-192.png",
         data: data
     };
 }

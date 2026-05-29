@@ -27,7 +27,7 @@ def send_notification(notification) -> bool:
     ).rstrip("/")
     origin = base_url or request.host_url.rstrip("/")
     notification_url = f"{origin}/home"
-    asset_url = f"{origin}/static/assets/logo.png"
+    asset_url = f"{origin}/static/icons/icon-192.png"
 
     webpush_options = {
         "headers": {
@@ -116,8 +116,8 @@ def send_diagnostic_notification(user) -> dict:
             notification=messaging.WebpushNotification(
                 title=title,
                 body=body,
-                icon=f"{origin}/static/assets/logo.png",
-                badge=f"{origin}/static/assets/logo.png",
+                icon=f"{origin}/static/icons/icon-192.png",
+                badge=f"{origin}/static/icons/icon-192.png",
                 tag=f"chatflick_diagnostic_{getattr(user, 'id', '')}",
                 renotify=True,
             ),

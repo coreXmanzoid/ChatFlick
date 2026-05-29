@@ -157,7 +157,7 @@ async function sharePostContent(shareData) {
     }
 
     if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText((shareData.text || "").trim() + "\n" + shareData.url);
+        await navigator.clipboard.writeText(shareData.url);
         return {
             shared: true,
             mode: "clipboard"
@@ -165,7 +165,7 @@ async function sharePostContent(shareData) {
     }
 
     const fallbackInput = document.createElement("textarea");
-    fallbackInput.value = ((shareData.text || "").trim() + "\n" + shareData.url).trim();
+    fallbackInput.value = shareData.url;
     fallbackInput.setAttribute("readonly", "");
     fallbackInput.style.position = "fixed";
     fallbackInput.style.opacity = "0";
