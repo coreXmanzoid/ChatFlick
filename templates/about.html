@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+  {% include 'pwa_head.html' %}
   <title>About Us — ChatFlick</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,6 +15,7 @@
 </head>
 
 <body>
+  {% include 'pwa_splash.html' %}
 
   <!-- ─── NAV ─── -->
   <nav>
@@ -422,6 +424,7 @@
         href="mailto:coreXmanzoid@gmail.com"
         style="color:var(--accent); text-decoration:none;">coreXmanzoid@gmail.com</a></p>
   </footer>
+  {% include 'pwa_scripts.html' %}
 
 </body>
 

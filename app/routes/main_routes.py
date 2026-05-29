@@ -462,175 +462,58 @@ def terms_of_service():
     return render_template("termsOfService.html")
 
 
+@main_bp.route("/offline")
+def offline():
+    """Offline fallback page served by the PWA service worker."""
+    return render_template("offline.html")
+
+@main_bp.route("/manifest.json")
+def manifest_json():
+    """Serve the install manifest from static/pwa/manifest.json."""
+    response = send_from_directory(
+        Path(current_app.static_folder) / "pwa",
+        "manifest.json",
+        mimetype="application/manifest+json",
+    )
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
 
 @main_bp.route("/manifest.webmanifest")
 def web_manifest():
-
-    manifest = {
-        "name": "ChatFlick by coreXmanzoid",
-        "short_name": "ChatFlick",
-        "description": "Modern social messaging and notifications platform",
-        "start_url": "/",
-        "scope": "/",
-        "display": "standalone",
-        "display_override": [
-            "window-controls-overlay",
-            "standalone"
-        ],
-        "orientation": "portrait",
-        "background_color": "#ffffff",
-        "theme_color": "#000000",
-
-        # Better app categorization
-        "categories": [
-            "social",
-            "communication",
-            "messaging"
-        ],
-
-        # Better installability
-        "prefer_related_applications": False,
-
-        # App icons
-        "icons": [
-            {
-                "src": url_for(
-                    "static",
-                    filename="icons/icon-192.png"
-                ),
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any maskable"
-            },
-            {
-                "src": url_for(
-                    "static",
-                    filename="icons/icon-512.png"
-                ),
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any maskable"
-            }
-        ],
-
-        # Optional quick shortcuts
-        "shortcuts": [
-            {
-                "name": "Home",
-                "short_name": "Home",
-                "url": "/home",
-                "icons": [
-                    {
-                        "src": url_for(
-                            "static",
-                            filename="icons/icon-192.png"
-                        ),
-                        "sizes": "192x192"
-                    }
-                ]
-            },
-            {
-                "name": "Messages",
-                "short_name": "Messages",
-                "url": "/messages",
-                "icons": [
-                    {
-                        "src": url_for(
-                            "static",
-                            filename="icons/icon-192.png"
-                        ),
-                        "sizes": "192x192"
-                    }
-                ]
-            }
-        ]
-    }
-
-    return jsonify(manifest)
+    """Backward-compatible manifest URL for older templates or installed clients."""
+    return manifest_json()
 
 
-@main_bp.route("/service-worker.js")
-def service_worker():
-    return send_from_directory(
-        "static",
-        "service-worker.js",
-        mimetype="application/javascript"
+def _service_worker_response():
+    """Serve the root PWA worker so its scope covers the whole Flask app."""
+    service_worker_path = Path(current_app.static_folder) / "pwa" / "service-worker.js"
+    script = service_worker_path.read_text(encoding="utf-8")
+    firebase_config_script = (
+        "Object.assign(FIREBASE_CONFIG, "
+        f"{json.dumps(get_firebase_web_config())}"
+        ");"
     )
-
-@main_bp.route("/firebase-messaging-sw.js")
-def firebase_messaging_sw():
-    firebase_config = json.dumps(get_firebase_web_config())
-    script = f"""
-    importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js");
-    importScripts("https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js");
-
-    if (!firebase.apps.length) {{
-        firebase.initializeApp({firebase_config});
-    }}
-
-    const messaging = firebase.messaging();
-
-    function getNotificationPayload(payload) {{
-        const notification = payload && payload.notification ? payload.notification : {{}};
-        const data = payload && payload.data ? payload.data : {{}};
-        return {{
-            title: notification.title || data.title || "ChatFlick",
-            body: notification.body || data.body || "",
-            icon: notification.icon || data.icon || "/static/assets/logo.png",
-            data: data
-        }};
-    }}
-
-    messaging.onBackgroundMessage(function (payload) {{
-        if (payload && payload.notification) {{
-            return;
-        }}
-
-        const notification = getNotificationPayload(payload);
-        const tag = notification.data && notification.data.type
-            ? notification.data.type + "_" + (notification.data.identifier || "")
-            : "chatflick_general";
-
-        return self.registration.showNotification(notification.title, {{
-            body: notification.body,
-            icon: notification.icon,
-            badge: "/static/assets/logo.png",
-            data: notification.data,
-            tag: tag,
-            renotify: true
-        }});
-    }});
-
-    self.addEventListener("notificationclick", function (event) {{
-        event.notification.close();
-        const targetUrl = event.notification.data && event.notification.data.url
-            ? event.notification.data.url
-            : "/home";
-        const absoluteTargetUrl = new URL(targetUrl, self.location.origin).href;
-
-        event.waitUntil(
-            clients.matchAll({{ type: "window", includeUncontrolled: true }}).then(function (clientList) {{
-                for (const client of clientList) {{
-                    if (client.url === absoluteTargetUrl && "focus" in client) return client.focus();
-                }}
-                if (clients.openWindow) return clients.openWindow(targetUrl);
-            }})
-        );
-    }});
-
-    self.addEventListener("install", function () {{
-        self.skipWaiting();
-    }});
-
-    self.addEventListener("activate", function (event) {{
-        event.waitUntil(self.clients.claim());
-    }});
-    """.lstrip()
+    script = script.replace(
+        "// __CHATFLICK_FIREBASE_CONFIG_INJECTION__",
+        firebase_config_script,
+    )
     response = make_response(script)
     response.headers["Content-Type"] = "application/javascript; charset=utf-8"
     response.headers["Service-Worker-Allowed"] = "/"
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
+
+
+@main_bp.route("/service-worker.js")
+def service_worker():
+    return _service_worker_response()
+
+
+@main_bp.route("/firebase-messaging-sw.js")
+def firebase_messaging_sw():
+    """Legacy Firebase worker URL now serves the combined PWA worker."""
+    return _service_worker_response()
 
 
 @main_bp.route("/home", methods=["GET", "POST"])

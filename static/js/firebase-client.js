@@ -1,7 +1,7 @@
 const firebaseRuntimeConfig = window.firebaseRuntimeConfig || {};
 const firebaseEnabled = Boolean(firebaseRuntimeConfig.firebaseEnabled);
 const vapidKey = firebaseRuntimeConfig.vapidKey || "";
-const firebaseMessagingSwPath = "/firebase-messaging-sw.js";
+const firebaseMessagingSwPath = "/service-worker.js";
 const firebaseConfig = firebaseRuntimeConfig.firebaseConfig || {};
 const firebaseTokenStorageKey = "chatflick:fcm-token";
 
@@ -114,9 +114,9 @@ function isFirebaseMessagingServiceWorker(scriptUrl) {
 
     try {
         const url = new URL(scriptUrl, window.location.origin);
-        return url.pathname === firebaseMessagingSwPath;
+        return url.pathname === firebaseMessagingSwPath || url.pathname === "/firebase-messaging-sw.js";
     } catch (error) {
-        return scriptUrl.indexOf("firebase-messaging-sw.js") !== -1;
+        return scriptUrl.indexOf("service-worker.js") !== -1 || scriptUrl.indexOf("firebase-messaging-sw.js") !== -1;
     }
 }
 

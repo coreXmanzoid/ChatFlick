@@ -1,0 +1,16 @@
+{# Shared ChatFlick PWA head tags. Place app icons in static/icons/. #}
+<meta name="application-name" content="ChatFlick">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ChatFlick">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="{{ url_for('main.manifest_json') }}">
+<link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="preload" href="{{ url_for('static', filename='icons/icon-192.png') }}" as="image">
+<link rel="preload" href="{{ url_for('static', filename='pwa/pwa.css') }}" as="style">
+<link rel="stylesheet" href="{{ url_for('static', filename='pwa/pwa.css') }}?v=2026-05-29-1">

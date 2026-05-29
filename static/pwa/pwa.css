@@ -1,0 +1,155 @@
+:root {
+    --pwa-safe-top: env(safe-area-inset-top, 0px);
+    --pwa-safe-right: env(safe-area-inset-right, 0px);
+    --pwa-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --pwa-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+    min-height: 100%;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    touch-action: manipulation;
+}
+
+body {
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    padding-left: var(--pwa-safe-left);
+    padding-right: var(--pwa-safe-right);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+    touch-action: manipulation;
+}
+
+.chatflick-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: grid;
+    place-items: center;
+    padding: calc(32px + var(--pwa-safe-top)) 24px calc(32px + var(--pwa-safe-bottom));
+    background: #F7F1D5;
+    color: #8f8674;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.45s ease, visibility 0.45s ease;
+    width: 100vw;
+    height: 100vh; /* fallback */
+    height: 100dvh; /* modern mobile fix */
+}
+
+.chatflick-splash.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.chatflick-splash__content {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    transform: translateY(0);
+    animation: chatflickSplashFloat 1.6s ease-in-out infinite alternate;
+}
+
+
+.chatflick-splash__logo {
+    width: 240px;
+    height: auto;
+    object-fit: contain;
+}
+
+.chatflick-splash__title {
+    margin: 0px 0 0;
+    font-size: 1.55rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.chatflick-splash__byline {
+    margin: 0;
+    text-align: center;
+    color: #8f8674;
+    font-size: 0.70rem;
+    font-weight: 600;
+    width: max-content;
+    opacity: 0.75;
+    letter-spacing: 0.2px;
+
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    transform: translateX(-50%);
+
+    z-index: 2147483647;
+    pointer-events: none;
+    /* prevents accidental clicks */
+}
+
+.chatflick-splash__loader {
+    width: 42px;
+    height: 3px;
+    margin-top: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(143, 134, 116, 0.18);
+}
+
+.chatflick-splash__loader::after {
+    content: "";
+    display: block;
+    width: 45%;
+    height: 100%;
+    border-radius: inherit;
+    background: #8f8674;
+    animation: chatflickSplashLoad 0.95s ease-in-out infinite;
+}
+
+@keyframes chatflickSplashFloat {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-6px);
+    }
+}
+
+@keyframes chatflickSplashLoad {
+    0% {
+        transform: translateX(-110%);
+    }
+
+    100% {
+        transform: translateX(230%);
+    }
+}
+
+@media (display-mode: standalone) {
+    body {
+        user-select: none;
+    }
+
+    input,
+    textarea {
+        user-select: text;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .chatflick-splash,
+    .chatflick-splash__content,
+    .chatflick-splash__loader::after {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
+    }
+}
