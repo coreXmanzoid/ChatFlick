@@ -1,7 +1,7 @@
 // ChatFlick PWA service worker.
 // Files are stored in static/pwa/. Bump CACHE_VERSION when app assets change.
 // To clear old caches during updates, increment CACHE_VERSION and reload clients.
-const CACHE_VERSION = "2026-05-29-4";
+const CACHE_VERSION = "2026-05-30-4";
 const STATIC_CACHE = `chatflick-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `chatflick-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";

@@ -526,7 +526,7 @@ function validatePostFeatures(content, mentionsData) {
     // Detect hashtags like #ChatFlick
     const hashtagMatches = content.match(/#\w+/g) || [];
 
-        // Check hashtag limit
+    // Check hashtag limit
     if (hashtagMatches.length > 5) {
 
         showSettingToast(
@@ -1326,7 +1326,7 @@ $(document).off("click.submitPost", ".submit button").on("click.submitPost", ".s
 
     const tempPostId = prependPost(content, userId);
 
-    
+
     ajaxWithAbort("submitPost", {
         url: "/managePosts/1",
         method: "POST",
@@ -1440,16 +1440,29 @@ $(document).off("click.profileAudience", ".audience small").on("click.profileAud
         return;
     }
 
-    window.location.href = "/setting";
 });
 
-$(document).off("click.profileFollowers", ".followers").on("click.profileFollowers", ".followers", function () {
-    exploreAccounts("/exploreAccounts/" + $(this).attr("class").split(" ")[1] + "/followers");
-});
+$(document)
+    .off("click.profileFollowers", ".followers")
+    .on("click.profileFollowers", ".followers", function () {
 
-$(document).off("click.profileFollowing", ".following").on("click.profileFollowing", ".following", function () {
-    exploreAccounts("/exploreAccounts/" + $(this).attr("class").split(" ")[1] + "/following");
-});
+        const userId = $(this)
+            .closest(".account-audience")
+            .data("user-id");
+
+        exploreAccounts(`/exploreAccounts/${userId}/followers`);
+    });
+
+$(document)
+    .off("click.profileFollowing", ".following")
+    .on("click.profileFollowing", ".following", function () {
+
+        const userId = $(this)
+            .closest(".account-audience")
+            .data("user-id");
+
+        exploreAccounts(`/exploreAccounts/${userId}/following`);
+    });
 
 $(document).off("click.profileOptions", ".ProfileOptions h6").on("click.profileOptions", ".ProfileOptions h6", function () {
     $(".ProfileOptions h6").removeClass("active-a");
@@ -1484,7 +1497,8 @@ $(document).off("click.postProfile", ".post-heading h5").on("click.postProfile",
     }
 });
 
-$(document).off("click.options-menu", ".options-menu a").on("click.options-menu", ".options-menu a", function (e) {
+$(document).off("click.options-menu", ".options-menu a")
+.on("click.options-menu", ".options-menu a", async function (e) {
     e.stopPropagation();
     let clickID = $(this).attr("id");
 
@@ -1524,15 +1538,15 @@ $(document).off("click.options-menu", ".options-menu a").on("click.options-menu"
         const postId = $(this).closest(".options-menu").data("postid")
             || $(this).closest(".post, .post-detail").data("postid");
         $(".report-center").data("postid", postId).show();
-    }else if( clickID === "follow-me"){
+    } else if (clickID === "follow-me") {
         showSettingToast("This feature is comming soon!", "Notice");
-    }else if ( clickID === "add-to-favorites"){
+    } else if (clickID === "add-to-favorites") {
         showSettingToast("This feature is comming soon!", "Notice");
-    }else if ( clickID === "interested-in-post"){
+    } else if (clickID === "interested-in-post") {
         showSettingToast("You'll see more posts like this!", "Success");
-    }else if ( clickID === "not-interested-in-post"){
+    } else if (clickID === "not-interested-in-post") {
         showSettingToast("You'll see less posts like this!", "Success");
-    }else if ( clickID === "copy-link"){
+    } else if (clickID === "copy-link") {
         e.preventDefault();
         const postId = $(this).closest(".options-menu").data("postid")
             || $(this).closest(".post, .post-detail").data("postid")
@@ -1543,10 +1557,66 @@ $(document).off("click.options-menu", ".options-menu a").on("click.options-menu"
         } else if (postId) {
             window.prompt("Copy post link", getPostPermalink(postId));
         }
-    }else if ( clickID === "block-user"){
+    } else if (clickID === "block-user") {
         showSettingToast("This feature is comming soon!", "Notice");
+    } else if (clickID === "about-this-account") {
+
+        showSettingToast("This feature is coming soon!", "Notice");
+
+    } else if (clickID === "copy-profile-link") {
+
+        const profileUrl = window.location.href;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(profileUrl);
+                showSettingToast("Profile link copied to clipboard.", "success");
+            } catch (err) {
+                showSettingToast("Unable to copy profile link.", "error");
+            }
+        } else {
+            window.prompt("Copy profile link", profileUrl);
+        }
+
+    } else if (clickID === "report-user") {
+
+        // Open your report modal here
+        showSettingToast("This feature is coming soon!", "Notice");
+
+    } else if (clickID === "share-profile") {
+
+        const username =
+            $(".profile-username").text().trim() ||
+            window.location.pathname.split("/").pop();
+
+        const shareData = {
+            title: `${username}'s ChatFlick Profile`,
+            text: [
+                `User: ${username}`,
+                "Check out this profile on ChatFlick"
+            ].join("\n"),
+            url: window.location.href
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                showSettingToast("Profile link copied for sharing.", "success");
+            }
+        } catch (err) {
+            console.log("Profile share cancelled.");
+        }
+
+    } else if (clickID === "block-user") {
+
+        showSettingToast("This feature is coming soon!", "Notice");
+
     }
+
 });
+
 
 $(document).off("click.close-report", ".report-center .close")
     .on("click.close-report", ".report-center .close", function (e) {

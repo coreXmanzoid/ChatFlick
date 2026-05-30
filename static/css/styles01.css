@@ -424,6 +424,12 @@ button:hover {
   justify-content: space-evenly;
 }
 
+.edit-profile {
+  margin-left: auto !important;
+  font-size: 15px;
+  color: var(--text-ink);
+  cursor: pointer;
+}
 
 .profileOptions {
 
@@ -736,9 +742,10 @@ button:hover {
 }
 
 .profile .info h5 {
-  color: #2e2a22;
-  font-weight: 600;
+  color: var(--text-ink);
+  font-weight: 500;
   font-size: 18px;
+  margin-bottom: 1px !important;
 }
 
 .profile .info h5 i {
@@ -747,9 +754,11 @@ button:hover {
 
 .profile .info h6 {
   color: var(--primary);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
 }
+
+
 
 .profile .profile-pic-wrapper {
   position: relative;
@@ -797,31 +806,56 @@ button:hover {
   opacity: 1;
 }
 
-/* Audience section (follower/following counts) */
-.profile .audience {
-  position: relative;
-}
-
-.profile .audience small {
-  position: absolute;
-  top: 2px;
-  right: 5px;
-  text-decoration: underline;
-  color: #2e2a22;
-  font-size: 16px;
-  font-weight: 700;
+.account-audience {
   cursor: pointer;
+
+  h6 {
+    font-weight: 500;
+    color: var(--text-ink);
+  }
+
+  small {
+    color: var(--text-subtle);
+    font-weight: 500;
+    opacity: 0.9;
+  }
+
+  text-align: left;
+  margin: 35px 10px 0 0 !important;
 }
 
-.profile .audience-box {
-  display: flex;
-  justify-content: center;
-  margin-top: 14%;
-  gap: 10px;
-}
+#profile-data {
+ display: flex;
+ flex-wrap: wrap;
+  gap: 2px;
+  small {
+    white-space: nowrap;
+    padding: 4px 3px;
+    border-radius: 999px;
+    border: 1px solid rgba(249, 72, 24, 0.3);
+    font-weight: 500;
+    margin: 2px 1px;
+    font-size: 10px;
+    color: var(--text-ink);
+    background: rgba(249, 72, 24, 0.15);
+    background-image: linear-gradient(135deg, rgba(249, 72, 24, 0.3), transparent);
+    border-radius: var(--radius-md);
 
-.audience-box strong {
-  font-size: 14px;
+    span.pay-tag-dot {
+      display: inline-block;
+      width: 6px !important;
+      height: 6px !important;
+      margin: 0 3px;
+      border-radius: 50%;
+      background: #f94818;
+      box-shadow: 0 0 8px #f94818;
+      animation: pulse 2s ease infinite;
+    }
+    a{
+      color: var(--primary);
+      font-weight: 600;
+    }
+  }
 }
 
 /* Profile Options tab bar */
@@ -1095,15 +1129,26 @@ h5:hover {
   top: 45px;
   right: 0;
   min-width: 170px;
-  background: rgba(255, 255, 255, 0.12);
+
+  /* More transparent glass */
+  background: rgba(255, 255, 255, 0.06);
+
+  /* Stronger blur */
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
+
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  /* Glass edge highlight */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.18),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+
   padding: 8px 0;
+
   opacity: 0;
   visibility: hidden;
   transform: translateY(10px);

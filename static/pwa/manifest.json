@@ -2,7 +2,7 @@
   "name": "ChatFlick by coreXmanzoid",
   "short_name": "ChatFlick",
   "description": "A modern social microblogging app by coreXmanzoid.",
-  "version": "1.1.2",
+  "version": "1.2.2",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -70,7 +70,7 @@
       "name": "Flick-AI",
       "short_name": "Flick-AI",
       "description": "Chat with Flick-AI, your AI assistant.",
-      "url": "/manzoid-ai",
+      "url": "/Manzoid-AI",
       "icons": [
         {
           "src": "/static/icons/icon-192.png",
