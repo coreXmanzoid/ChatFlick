@@ -1137,7 +1137,7 @@ button:hover {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--muted);
-    margin-bottom: 18px;
+    /* margin-bottom: 18px; */
 
     span {
         align-items: center;
@@ -1183,7 +1183,8 @@ button:hover {
 }
 
 .profile .info i {
-    color: #3b82f6;
+    font-size: 12px;
+    padding: 0 3px;
 }
 
 .profile .info small {
@@ -1200,12 +1201,14 @@ button:hover {
 
 .profile .info h5 i {
     font-size: 13px;
+    padding: 0;
 }
 
 .profile .info h6 {
     color: var(--accent);
     font-size: 13px;
     font-weight: 600;
+    margin: 0 !important;
 }
 
 
@@ -1224,6 +1227,7 @@ button:hover {
     object-fit: cover;
     transition: opacity 0.3s ease;
     border-radius: 50%;
+    border: 3px solid #DEDED1;
 }
 
 .profile .profile-pic-overlay {
@@ -1269,7 +1273,8 @@ button:hover {
         opacity: 0.8;
         font-size: 11px;
     }
-    gap: 10px !important; 
+
+    gap: 10px !important;
     text-align: left;
     margin: 2px 2px 0 0 !important;
 }
@@ -1287,7 +1292,7 @@ button:hover {
         font-weight: 500;
         margin: 2px 1px;
         font-size: 10px;
-        color: #DEDED1;
+        color: #46423b;
         background: rgba(249, 72, 24, 0.15);
         background-image: linear-gradient(135deg, rgba(249, 72, 24, 0.3), transparent);
         border-radius: 14px;
@@ -1310,6 +1315,21 @@ button:hover {
     }
 }
 
+#profile-data small.Follow,
+#profile-data small.Following,
+#profile-data small.share-profile {
+    cursor: pointer;
+    font-weight: 600;
+    border-radius: 14px !important;
+    border: 2px solid rgba(70, 66, 59, 0.14) !important;
+}
+#like-post{
+  color: #8f8674;
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 0px !important;
+  cursor: pointer;
+}
 
 .search {
     animation: mobileSoftPop 0.24s ease both;

@@ -1699,6 +1699,10 @@ $(function () {
         const mentionsData = JSON.parse($textarea.attr("data-mentions") || "[]");
         validatePostFeatures(content, mentionsData);
     });
+    $(document).on("click", "#like-post", function (e) {
+        e.preventDefault();
+        showLikedPosts();
+    });
 
     $(document).on("click", ".ProfileOptions h6", function () {
         $(".ProfileOptions h6").removeClass("active-a");
@@ -1887,50 +1891,77 @@ $(function () {
         });
     });
 
-    $(document).on("click", ".profile .audience small", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
+    $(document)
+        .off("click.profileActions", "#profile-data small")
+        .on("click.profileActions", "#profile-data small", async function (e) {
 
-        const $button = $(this);
-        const accountId = $button.parent().attr("class").split(" ")[1];
-        const primaryClass = $button.attr("class").split(" ")[0];
+            e.preventDefault();
+            e.stopPropagation();
 
-        if (primaryClass === "Follow") {
-            $.ajax({
-                url: "/follows/" + accountId + "/1",
-                type: "POST",
-                success: function (response) {
-                    $button.text("Following");
-                    $button.attr("class", "Following ps-3");
+            const $button = $(this);
+            const accountId = $button.data("user-id");
 
-                    sendNotification({
-                        recipientId: accountId,
-                        title: "New Follower",
-                        type: "new_follower",
-                        identifier: response.follower_id,
-                        message: response.follower_name + " started following you.",
-                        Push: "true",
-                        state: 3
-                    });
+            if ($button.hasClass("Follow")) {
+                $.ajax({
+                    url: "/follows/" + accountId + "/1",
+                    type: "POST",
+                    success: function (response) {
+                        $button
+                            .text("Following")
+                            .removeClass("Follow")
+                            .addClass("Following");
+
+                        sendNotification({
+                            recipientId: accountId,
+                            title: "New Follower",
+                            type: "new_follower",
+                            identifier: response.follower_id,
+                            message: response.follower_name + " started following you.",
+                            Push: "true",
+                            state: 3
+                        });
+                    }
+                });
+                return;
+            }
+
+            if ($button.hasClass("Following")) {
+                $.ajax({
+                    url: "/follows/" + accountId + "/2",
+                    type: "POST",
+                    success: function () {
+                        $button
+                            .text("Follow")
+                            .removeClass("Following")
+                            .addClass("Follow");
+                    }
+                });
+                return;
+            }
+
+            if ($button.hasClass("share-profile")) {
+                const username = $button.data("username") || "This user";
+
+                const shareData = {
+                    title: `${username}'s ChatFlick Profile`,
+                    text: `User: ${username}\nCheck out this profile on ChatFlick`,
+                    url: window.location.href
+                };
+
+                try {
+                    if (navigator.share) {
+                        await navigator.share(shareData);
+                    } else {
+                        await navigator.clipboard.writeText(window.location.href);
+                        showSettingToast("Profile link copied for sharing.", "success");
+                    }
+                } catch (err) {
+                    console.log("Profile share cancelled.");
                 }
-            });
-            return;
-        }
 
-        if (primaryClass === "Following") {
-            $.ajax({
-                url: "/follows/" + accountId + "/2",
-                type: "POST",
-                success: function () {
-                    $button.text("Follow");
-                    $button.attr("class", "Follow ps-4");
-                }
-            });
-            return;
-        }
-
-        window.location.href = "/setting";
-    });
+                return;
+            }
+        });
 
     $(document).on("click", ".profile-pic-wrapper", function () {
         $(this).find("#profileInput").trigger("click");

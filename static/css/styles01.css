@@ -733,7 +733,8 @@ button:hover {
 }
 
 .profile .info i {
-  color: #3b82f6;
+  font-size: 12px;
+  padding: 0 3px;
 }
 
 .profile .info small {
@@ -750,6 +751,7 @@ button:hover {
 
 .profile .info h5 i {
   font-size: 15px;
+  padding: 0;
 }
 
 .profile .info h6 {
@@ -775,6 +777,7 @@ button:hover {
   object-fit: cover;
   transition: opacity 0.3s ease;
   border-radius: var(--radius-circle);
+  border: 3px solid #DEDED1;
 }
 
 .profile .profile-pic-overlay {
@@ -790,6 +793,8 @@ button:hover {
   font-size: 14px;
   transition: opacity 0.3s ease;
 }
+
+
 
 .profile #profileInput {
   position: absolute;
@@ -856,6 +861,22 @@ button:hover {
       font-weight: 600;
     }
   }
+}
+#profile-data small.Follow,
+#profile-data small.Following,
+#profile-data small.share-profile {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    border: 2px solid rgba(70, 66, 59, 0.14) !important;
+}
+#like-post{
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 0px !important;
+  cursor: pointer;
 }
 
 /* Profile Options tab bar */

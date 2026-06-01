@@ -41,7 +41,7 @@
     <div class="profile container">
         <div class="info" data-user-id="{{user.id}}">
 
-            <div class="row profile-header align-items-end mb-3">
+            <div class="row profile-header align-items-end mb-1">
 
                 <!-- LEFT: Profile Image -->
                 <div class="col-auto">
@@ -122,11 +122,20 @@
 
                     {% if user.get_setting('account-info', 'website') %}
                     <small>
+                        <i class="bi bi-globe2"></i>
                         <a href="{{ user.get_setting('account-info', 'website') }}" target="_blank"
                             rel="noopener noreferrer">
                             {{ user.get_setting('account-info', 'website') }}
                         </a>
                     </small>
+                    {% endif %}
+                    <div class="w-100"></div>
+                    {% if current_user.id == user.id %}
+                    <small class="share-profile px-3 cursor-pointer" data-username="{{ user.username }}">Share Profile</small> <small><i class="bi bi-heart-fill" id="like-post"></i></small>
+                    {% elif is_following %}
+                    <small class="Following px-3" data-user-id="{{ user.id }}">Following</small>
+                    {% else %}
+                    <small class="Follow px-3" data-user-id="{{ user.id }}">Follow</small>
                     {% endif %}
 
                 </div>

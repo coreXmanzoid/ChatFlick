@@ -1285,6 +1285,11 @@ $(".likes-button").on("click", function (e) {
     ChatFlickNav.navigate("/liked");
 });
 
+$(document).on("click", "#like-post", function (e) {
+    e.preventDefault();
+    $(".likes-button").addClass("active").removeClass("link-dark");
+    showLikedView();
+});
 $(".profile-link").on("click", function (e) {
     e.preventDefault();
     ChatFlickNav.navigate("/profile/" + getCurrentUserId());
@@ -1410,37 +1415,65 @@ $(document).off("change.profileInput", "#profileInput").on("change.profileInput"
         state: 2
     });
 });
+$(document)
+    .off("click.profileActions", "#profile-data small")
+    .on("click.profileActions", "#profile-data small", async function () {
 
-$(document).off("click.profileAudience", ".audience small").on("click.profileAudience", ".audience small", function () {
-    const $btn = $(this);
-    const primaryClass = ($btn.attr("class") || "").split(" ")[0];
-    const accountId = $btn.closest(".audience").attr("class").split(" ")[1];
+        const $btn = $(this);
+        const accountId = $btn.data("user-id");
 
-    if (primaryClass === "Follow") {
-        $.ajax({
-            url: "/follows/" + accountId + "/1",
-            type: "POST",
-            success: function () {
-                $btn.text("Following");
-                $btn.attr("class", "Following ps-3");
+        if ($btn.hasClass("Follow")) {
+            $.ajax({
+                url: "/follows/" + accountId + "/1",
+                type: "POST",
+                success: function () {
+                    $btn
+                        .text("Following")
+                        .removeClass("Follow")
+                        .addClass("Following");
+                }
+            });
+            return;
+        }
+
+        if ($btn.hasClass("Following")) {
+            $.ajax({
+                url: "/follows/" + accountId + "/2",
+                type: "POST",
+                success: function () {
+                    $btn
+                        .text("Follow")
+                        .removeClass("Following")
+                        .addClass("Follow");
+                }
+            });
+            return;
+        }
+
+        if ($btn.hasClass("share-profile")) {
+            const username = $btn.data("username") || "This user";
+
+            const shareData = {
+                title: `${username}'s ChatFlick Profile`,
+                text: `User: ${username}\nCheck out this profile on ChatFlick`,
+                url: window.location.href
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    await navigator.clipboard.writeText(window.location.href);
+                    showSettingToast(
+                        "Profile link copied for sharing.",
+                        "success"
+                    );
+                }
+            } catch (err) {
+                console.log("Profile share cancelled.");
             }
-        });
-        return;
-    }
-
-    if (primaryClass === "Following") {
-        $.ajax({
-            url: "/follows/" + accountId + "/2",
-            type: "POST",
-            success: function () {
-                $btn.text("Follow");
-                $btn.attr("class", "Follow ps-4");
-            }
-        });
-        return;
-    }
-
-});
+        }
+    });
 
 $(document)
     .off("click.profileFollowers", ".followers")
@@ -1463,6 +1496,7 @@ $(document)
 
         exploreAccounts(`/exploreAccounts/${userId}/following`);
     });
+
 
 $(document).off("click.profileOptions", ".ProfileOptions h6").on("click.profileOptions", ".ProfileOptions h6", function () {
     $(".ProfileOptions h6").removeClass("active-a");
@@ -1498,124 +1532,124 @@ $(document).off("click.postProfile", ".post-heading h5").on("click.postProfile",
 });
 
 $(document).off("click.options-menu", ".options-menu a")
-.on("click.options-menu", ".options-menu a", async function (e) {
-    e.stopPropagation();
-    let clickID = $(this).attr("id");
+    .on("click.options-menu", ".options-menu a", async function (e) {
+        e.stopPropagation();
+        let clickID = $(this).attr("id");
 
-    if (clickID === "notification-settings") {
-        return;
-    }
+        if (clickID === "notification-settings") {
+            return;
+        }
 
-    if ($(this).closest(".notification-options").length) {
-        e.preventDefault();
-        $(".options-menu.show").removeClass("show");
+        if ($(this).closest(".notification-options").length) {
+            e.preventDefault();
+            $(".options-menu.show").removeClass("show");
 
-        if (clickID === "mark-notifications-read") {
-            markAsRead();
-            showSettingToast("Notifications marked as read.", "success");
-        } else if (clickID === "clear-notifications") {
-            $.ajax({
-                url: "/notifications/clear",
-                type: "POST",
-                success: function () {
-                    loadNotifications();
-                    checkForNotifications(getCurrentUserId());
-                    showSettingToast("Notifications cleared.", "success");
-                },
-                error: function () {
-                    showSettingToast("Unable to clear notifications right now.", "error");
+            if (clickID === "mark-notifications-read") {
+                markAsRead();
+                showSettingToast("Notifications marked as read.", "success");
+            } else if (clickID === "clear-notifications") {
+                $.ajax({
+                    url: "/notifications/clear",
+                    type: "POST",
+                    success: function () {
+                        loadNotifications();
+                        checkForNotifications(getCurrentUserId());
+                        showSettingToast("Notifications cleared.", "success");
+                    },
+                    error: function () {
+                        showSettingToast("Unable to clear notifications right now.", "error");
+                    }
+                });
+            } else if (clickID === "refresh-notifications") {
+                loadNotifications();
+            }
+
+            return;
+        }
+
+        if (clickID === "report-post") {
+            e.preventDefault();
+            const postId = $(this).closest(".options-menu").data("postid")
+                || $(this).closest(".post, .post-detail").data("postid");
+            $(".report-center").data("postid", postId).show();
+        } else if (clickID === "follow-me") {
+            showSettingToast("This feature is comming soon!", "Notice");
+        } else if (clickID === "add-to-favorites") {
+            showSettingToast("This feature is comming soon!", "Notice");
+        } else if (clickID === "interested-in-post") {
+            showSettingToast("You'll see more posts like this!", "Success");
+        } else if (clickID === "not-interested-in-post") {
+            showSettingToast("You'll see less posts like this!", "Success");
+        } else if (clickID === "copy-link") {
+            e.preventDefault();
+            const postId = $(this).closest(".options-menu").data("postid")
+                || $(this).closest(".post, .post-detail").data("postid")
+                || $(".post-detail").data("postid");
+            if (postId && navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(getPostPermalink(postId));
+                showSettingToast("Post link copied to clipboard.", "success");
+            } else if (postId) {
+                window.prompt("Copy post link", getPostPermalink(postId));
+            }
+        } else if (clickID === "block-user") {
+            showSettingToast("This feature is comming soon!", "Notice");
+        } else if (clickID === "about-this-account") {
+
+            showSettingToast("This feature is coming soon!", "Notice");
+
+        } else if (clickID === "copy-profile-link") {
+
+            const profileUrl = window.location.href;
+
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(profileUrl);
+                    showSettingToast("Profile link copied to clipboard.", "success");
+                } catch (err) {
+                    showSettingToast("Unable to copy profile link.", "error");
                 }
-            });
-        } else if (clickID === "refresh-notifications") {
-            loadNotifications();
-        }
-
-        return;
-    }
-
-    if (clickID === "report-post") {
-        e.preventDefault();
-        const postId = $(this).closest(".options-menu").data("postid")
-            || $(this).closest(".post, .post-detail").data("postid");
-        $(".report-center").data("postid", postId).show();
-    } else if (clickID === "follow-me") {
-        showSettingToast("This feature is comming soon!", "Notice");
-    } else if (clickID === "add-to-favorites") {
-        showSettingToast("This feature is comming soon!", "Notice");
-    } else if (clickID === "interested-in-post") {
-        showSettingToast("You'll see more posts like this!", "Success");
-    } else if (clickID === "not-interested-in-post") {
-        showSettingToast("You'll see less posts like this!", "Success");
-    } else if (clickID === "copy-link") {
-        e.preventDefault();
-        const postId = $(this).closest(".options-menu").data("postid")
-            || $(this).closest(".post, .post-detail").data("postid")
-            || $(".post-detail").data("postid");
-        if (postId && navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(getPostPermalink(postId));
-            showSettingToast("Post link copied to clipboard.", "success");
-        } else if (postId) {
-            window.prompt("Copy post link", getPostPermalink(postId));
-        }
-    } else if (clickID === "block-user") {
-        showSettingToast("This feature is comming soon!", "Notice");
-    } else if (clickID === "about-this-account") {
-
-        showSettingToast("This feature is coming soon!", "Notice");
-
-    } else if (clickID === "copy-profile-link") {
-
-        const profileUrl = window.location.href;
-
-        if (navigator.clipboard && window.isSecureContext) {
-            try {
-                await navigator.clipboard.writeText(profileUrl);
-                showSettingToast("Profile link copied to clipboard.", "success");
-            } catch (err) {
-                showSettingToast("Unable to copy profile link.", "error");
-            }
-        } else {
-            window.prompt("Copy profile link", profileUrl);
-        }
-
-    } else if (clickID === "report-user") {
-
-        // Open your report modal here
-        showSettingToast("This feature is coming soon!", "Notice");
-
-    } else if (clickID === "share-profile") {
-
-        const username =
-            $(".profile-username").text().trim() ||
-            window.location.pathname.split("/").pop();
-
-        const shareData = {
-            title: `${username}'s ChatFlick Profile`,
-            text: [
-                `User: ${username}`,
-                "Check out this profile on ChatFlick"
-            ].join("\n"),
-            url: window.location.href
-        };
-
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
             } else {
-                await navigator.clipboard.writeText(window.location.href);
-                showSettingToast("Profile link copied for sharing.", "success");
+                window.prompt("Copy profile link", profileUrl);
             }
-        } catch (err) {
-            console.log("Profile share cancelled.");
+
+        } else if (clickID === "report-user") {
+
+            // Open your report modal here
+            showSettingToast("This feature is coming soon!", "Notice");
+
+        } else if (clickID === "share-profile") {
+
+            const username =
+                $(".profile-username").text().trim() ||
+                window.location.pathname.split("/").pop();
+
+            const shareData = {
+                title: `${username}'s ChatFlick Profile`,
+                text: [
+                    `User: ${username}`,
+                    "Check out this profile on ChatFlick"
+                ].join("\n"),
+                url: window.location.href
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    await navigator.clipboard.writeText(window.location.href);
+                    showSettingToast("Profile link copied for sharing.", "success");
+                }
+            } catch (err) {
+                console.log("Profile share cancelled.");
+            }
+
+        } else if (clickID === "block-user") {
+
+            showSettingToast("This feature is coming soon!", "Notice");
+
         }
 
-    } else if (clickID === "block-user") {
-
-        showSettingToast("This feature is coming soon!", "Notice");
-
-    }
-
-});
+    });
 
 
 $(document).off("click.close-report", ".report-center .close")
