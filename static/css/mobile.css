@@ -348,6 +348,30 @@ body {
     font-weight: 700;
 }
 
+.post-content .hashtag-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  transition: none;
+  transform: scale(1);
+  width:auto;
+  margin: 0;
+}
+
+.post-content .hashtag-link:hover,
+.post-content .hashtag-link:focus-visible {
+  color: var(--primary) !important;
+  background-color: transparent;
+  box-shadow: none;
+}
+
 .fullpost-box .post-actions {
     display: flex;
     align-items: center;
@@ -1413,7 +1437,9 @@ button:hover {
     align-items: center;
 
     button {
-        width: 85px;
+        text-align: center;
+        padding: 10px 0px;
+        width: 88px;
     }
 
     button:hover {

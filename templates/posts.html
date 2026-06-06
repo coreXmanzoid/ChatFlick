@@ -1,3 +1,11 @@
+{% if no_of_hashtags %}
+<div class="hashtags">
+    <p style="font-size: 14px; color: #555; padding: 5px 5px; border: 1px solid #ddd; border-radius: 5px; display: inline-block; background-color: #f9f9f9; margin: 20px 3px 5px 10px">
+        {{ no_of_hashtags | length }} posts found with this hashtag
+    </p>
+</div>
+<br>
+{% endif %}
 {% if not posts and not append_mode %}
 <div class="no-posts text-center d-flex align-items-center justify-content-center">
     <div>

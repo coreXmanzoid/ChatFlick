@@ -649,6 +649,30 @@ button:hover {
   font-weight: 700;
 }
 
+.post-content .hashtag-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  transition: none;
+  transform: scale(1);
+  width:auto;
+  margin: 0;
+}
+
+.post-content .hashtag-link:hover,
+.post-content .hashtag-link:focus-visible {
+  color: var(--primary) !important;
+  background-color: transparent;
+  box-shadow: none;
+}
+
 /* Active post highlight */
 .active-post {
   background-color: var(--bg-stone-1);

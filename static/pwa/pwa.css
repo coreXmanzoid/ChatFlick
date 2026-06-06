@@ -59,7 +59,6 @@ select {
     animation: chatflickSplashFloat 1.6s ease-in-out infinite alternate;
 }
 
-
 .chatflick-splash__logo {
     width: 240px;
     height: auto;
@@ -67,10 +66,10 @@ select {
 }
 
 .chatflick-splash__title {
-    margin: 0px 0 0;
+    margin: 4px 0 0;
     font-size: 1.55rem;
     line-height: 1;
-    font-weight: 600;
+    font-weight: 800;
     letter-spacing: 0;
 }
 
@@ -83,15 +82,12 @@ select {
     width: max-content;
     opacity: 0.75;
     letter-spacing: 0.2px;
-
     position: fixed;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
     transform: translateX(-50%);
-
     z-index: 2147483647;
     pointer-events: none;
-    /* prevents accidental clicks */
 }
 
 .chatflick-splash__loader {

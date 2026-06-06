@@ -134,6 +134,8 @@
                     <small class="share-profile px-3 cursor-pointer" data-username="{{ user.username }}">Share Profile</small> <small><i class="bi bi-heart-fill" id="like-post"></i></small>
                     {% elif is_following %}
                     <small class="Following px-3" data-user-id="{{ user.id }}">Following</small>
+                    <small ><i class="bi bi-envelope-at"></i><a style="text-decoration: none;" href="mailto:{{ user.email }}" target="_blank"
+                        >Email</a></small>
                     {% else %}
                     <small class="Follow px-3" data-user-id="{{ user.id }}">Follow</small>
                     {% endif %}

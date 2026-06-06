@@ -292,6 +292,28 @@ function renderMentions(selector) {
     });
 }
 
+function renderHashtags(selector) {
+    document.querySelectorAll(selector).forEach(function (el) {
+        const tags = (el.textContent.match(/#[^\s#]+/g) || []);
+
+        el.innerHTML = "";
+
+        tags.forEach(function (tag, index) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "hashtag-link";
+            button.dataset.hashtag = tag;
+            button.textContent = tag;
+
+            if (index > 0) {
+                el.appendChild(document.createTextNode(" "));
+            }
+
+            el.appendChild(button);
+        });
+    });
+}
+
 function initializeComposerFragment($root) {
     const $textareas = $root.find("textarea[name='post-input']");
     if (!$textareas.length) {
@@ -329,6 +351,7 @@ function initializePostsFragment($root) {
     }
 
     renderMentions(".post-content .content");
+    renderHashtags(".post-content .hashtag");
 
     $root.find(".post-time").each(function () {
         const display = formatRelativeTime($(this).data("timestamp"));
@@ -1162,12 +1185,30 @@ initializeDynamicContent($(document.body));
 ChatFlickNav.start();
 
 $(".search input").on("input", function () {
-    const query = $(this).val();
+    const query = $(this).val().trim();
     if (query.length > 0) {
-        exploreAccounts("/exploreAccounts/0/" + query);
+        exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
     } else {
         exploreAccounts("/exploreAccounts/0/random");
     }
+});
+
+function runHashtagSearch(hashtag) {
+    const query = (hashtag || "").trim();
+
+    if (!query.startsWith("#")) {
+        return;
+    }
+
+    showExploreView();
+    $(".search input").val(query);
+    exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+}
+
+$(document).on("click", ".hashtag-link", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    runHashtagSearch($(this).data("hashtag") || $(this).text());
 });
 
 $(".nav li a").on("click", function () {

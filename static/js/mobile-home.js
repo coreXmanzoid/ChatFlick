@@ -236,6 +236,28 @@ function renderMentions(selector) {
     });
 }
 
+function renderHashtags(selector) {
+    document.querySelectorAll(selector).forEach(function (el) {
+        const tags = (el.textContent.match(/#[^\s#]+/g) || []);
+
+        el.innerHTML = "";
+
+        tags.forEach(function (tag, index) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "hashtag-link";
+            button.dataset.hashtag = tag;
+            button.textContent = tag;
+
+            if (index > 0) {
+                el.appendChild(document.createTextNode(" "));
+            }
+
+            el.appendChild(button);
+        });
+    });
+}
+
 function initializeDynamicContent($root) {
     $root.find(".profile-tab").hide();
 
@@ -277,6 +299,7 @@ function initializeDynamicContent($root) {
     });
 
     renderMentions(".post-content .content, .comment-content .content");
+    renderHashtags(".post-content .hashtag");
     initializeOptionsToggle($root);
     $root.find(".ProfileOptions h6").removeClass("active-a").first().addClass("active-a");
 }
@@ -887,7 +910,7 @@ function showSearch() {
     $(".post-section").html(
         '<div class="search">' +
         '<i class="bi bi-search"></i>' +
-        '<input type="text" placeholder="Search By Name" autocomplete="off">' +
+        '<input type="text" placeholder="Search accounts or #hashtags" autocomplete="off">' +
         "</div>"
     );
     exploreAccounts("/exploreAccounts/0/random");
@@ -1590,6 +1613,24 @@ $(function () {
     $(document).on("input", ".search input", function () {
         const query = $(this).val().trim();
         exploreAccounts(query ? "/exploreAccounts/0/" + encodeURIComponent(query) : "/exploreAccounts/0/random");
+    });
+
+    function runMobileHashtagSearch(hashtag) {
+        const query = (hashtag || "").trim();
+
+        if (!query.startsWith("#")) {
+            return;
+        }
+
+        showSearch();
+        $(".search input").val(query);
+        exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+    }
+
+    $(document).on("click", ".hashtag-link", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        runMobileHashtagSearch($(this).data("hashtag") || $(this).text());
     });
 
     $(document).on("click", ".follow-list-close", function () {
