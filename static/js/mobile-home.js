@@ -907,14 +907,16 @@ function showSearch() {
     setActiveTab("Search");
     setMoreMenuVisible(false);
     setAccountsRowVisible(false);
-    $(".post-section").html(
-        '<div class="search">' +
-        '<i class="bi bi-search"></i>' +
-        '<input type="text" placeholder="Search accounts or #hashtags" autocomplete="off">' +
-        "</div>"
-    );
-    exploreAccounts("/exploreAccounts/0/random");
-    $(".search input").trigger("focus");
+    $(".post-section").empty();
+    $("#feed-post").empty();
+    loadFragment(
+        "mobileExplore",
+        $("#feed-post"),
+        "/explore",
+        '<div class="loader-wrapper"><span class="loader"></span></div>'
+    ).done(function () {
+        $(".cf-search-input").trigger("focus");
+    });
 }
 
 function showNotifications() {

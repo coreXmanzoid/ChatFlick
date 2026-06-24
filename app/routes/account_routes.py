@@ -74,7 +74,7 @@ def explore_accounts(id, state):
     following_ids = {f.following_id for f in current_user.following}
 
     return render_template(
-        "exploreAccounts.html",
+        "explore.html",
         accounts=accounts,
         following=following_ids
     )

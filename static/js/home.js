@@ -814,8 +814,19 @@ function showExploreView() {
     $(".full-post").hide();
     $(".ai-bar").hide();
     $(".explore-tab").show();
-    $(".search input").trigger("focus");
     $(".notifications-tab").hide();
+    if (!$(".explore-tab .cf-explore").length) {
+        loadFragment(
+            "desktopExplore",
+            $(".explore-tab"),
+            "/explore",
+            '<div class="loader-wrapper"><span class="loader"></span></div>'
+        ).done(function () {
+            $(".cf-search-input").trigger("focus");
+        });
+    } else {
+        $(".cf-search-input").trigger("focus");
+    }
 }
 
 function showLikedView() {
@@ -857,6 +868,14 @@ function Backtohome() {
     $(".ai-bar").hide();
     $(".notifications-tab").hide();
     $(".explore-tab").show();
+    if (!$(".explore-tab .cf-explore").length) {
+        loadFragment(
+            "desktopExplore",
+            $(".explore-tab"),
+            "/explore",
+            '<div class="loader-wrapper"><span class="loader"></span></div>'
+        );
+    }
     $(".nav a").removeClass("active link-dark").addClass("link-dark");
     $(".home-link").addClass("active").removeClass("link-dark");
     $(".div2").show();

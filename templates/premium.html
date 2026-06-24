@@ -39,14 +39,8 @@
         </div>
     </div>
 </div>
-
 <div class="explore-tab">
-    <center>
-        <div class="search">
-            <i class="bi bi-search"></i>
-            <input type="text" placeholder="Search accounts or #hashtags">
-        </div>
-    </center>
+    
     {% if not current_user.is_paid_plan %}
     <div class="premium">
         <h4>Subscribe to Premium</h4>
@@ -54,13 +48,6 @@
         <a href="{{ url_for('pricing.pricing') }}"><button>Subscribe</button></a>
     </div>
     {% endif %}
-    <div class="explore-accounts">
-        <!-- Show Accounts Segguestions -->
-        <div class="loader-wrapper">
-            <span class="loader"></span>
-        </div>
-
-    </div>
 </div>
 
 <div class="notifications-tab"></div>

@@ -525,6 +525,8 @@ def homepage():
 @main_bp.route("/explore")
 @login_required
 def explore():
+    if is_spa_fragment_request():
+        return render_template("explore.html")
     return render_app_shell()
 
 

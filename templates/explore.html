@@ -1,0 +1,108 @@
+<!-- ChatFlick Explore / Search Discovery Page -->
+<div class="cf-explore" id="cfExplore" data-userid="{{ current_user.id }}">
+  <div class="cf-search-wrap">
+    <label class="cf-search-shell" for="cfSearchInput" aria-label="Search ChatFlick">
+      <i class="bi bi-search cf-search-icon"></i>
+      <input
+        id="cfSearchInput"
+        type="search"
+        autocomplete="off"
+        placeholder="Search accounts or #hashtags"
+        class="cf-search-input"
+      >
+      <button class="cf-search-clear" id="cfSearchClear" type="button" aria-label="Clear search" hidden>
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </label>
+  </div>
+
+  <section class="cf-section" id="cfRecentSearches" hidden>
+    <div class="cf-section-header">
+      <span class="cf-section-label">Recent searches</span>
+      <button class="cf-link-btn" id="cfClearRecent" type="button">Clear all</button>
+    </div>
+    <div class="cf-recent-list" id="cfRecentList"></div>
+  </section>
+
+  <div id="cfDiscovery">
+    <section class="cf-section" id="cfSuggestedSection">
+      <div class="cf-section-header">
+        <span class="cf-section-label">Suggested for you</span>
+      </div>
+      <div class="cf-accounts-list" id="cfAccountsList">
+        <div class="cf-skeleton cf-skeleton-account"></div>
+        <div class="cf-skeleton cf-skeleton-account"></div>
+        <div class="cf-skeleton cf-skeleton-account"></div>
+      </div>
+      <button class="cf-see-more-btn" id="cfSeeMoreAccounts" type="button" hidden>
+        <i class="bi bi-people"></i> See more accounts
+      </button>
+    </section>
+
+    <section class="cf-section" id="cfTrendingHashtagsSection">
+      <div class="cf-section-header">
+        <span class="cf-section-label">Trending hashtags</span>
+      </div>
+      <div class="cf-hashtags-grid" id="cfHashtagsGrid">
+        <div class="cf-skeleton cf-skeleton-tag"></div>
+        <div class="cf-skeleton cf-skeleton-tag"></div>
+        <div class="cf-skeleton cf-skeleton-tag"></div>
+      </div>
+    </section>
+
+    <section class="cf-section" id="cfTrendingNowSection">
+      <div class="cf-section-header">
+        <span class="cf-section-label">Trending now</span>
+      </div>
+      <div class="cf-topics-list" id="cfTopicsList">
+        <div class="cf-skeleton cf-skeleton-topic"></div>
+        <div class="cf-skeleton cf-skeleton-topic"></div>
+        <div class="cf-skeleton cf-skeleton-topic"></div>
+      </div>
+    </section>
+
+    <section class="cf-section" id="cfPopularPostsSection">
+      <div class="cf-section-header">
+        <span class="cf-section-label">Popular right now</span>
+      </div>
+      <div class="cf-popular-posts" id="cfPopularPosts">
+        <div class="cf-skeleton cf-skeleton-post"></div>
+        <div class="cf-skeleton cf-skeleton-post"></div>
+        <div class="cf-skeleton cf-skeleton-post"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="cfResults" hidden>
+    <section class="cf-section" id="cfResultAccountsSection" hidden>
+      <div class="cf-section-header">
+        <span class="cf-section-label">People</span>
+      </div>
+      <div class="cf-accounts-list" id="cfResultAccounts"></div>
+    </section>
+
+    <section class="cf-section" id="cfResultPostsSection" hidden>
+      <div class="cf-section-header">
+        <span class="cf-section-label" id="cfResultPostsLabel">Posts</span>
+      </div>
+      <div class="cf-popular-posts" id="cfResultPosts"></div>
+    </section>
+
+    <div class="cf-empty" id="cfEmptyResults" hidden>
+      <i class="bi bi-search"></i>
+      <p>No results for <strong id="cfEmptyQuery"></strong></p>
+      <span>Try a different username or hashtag</span>
+    </div>
+  </div>
+
+  <footer class="cf-explore-footer">
+    <nav class="cf-footer-links" aria-label="Site links">
+      <a href="{{ url_for('main.terms_of_service') }}">Terms of Service</a>
+      <a href="{{ url_for('main.privacy_policy') }}">Privacy Policy</a>
+      <a href="{{ url_for('main.about') }}">About</a>
+      <a href="mailto:corexmanzoid@gmail.com">Contact</a>
+      <a href="{{ url_for('setting.setting', section='support') }}">Help Center</a>
+    </nav>
+    <p class="cf-footer-copy">&copy; 2026 coreXmanzoid - ChatFlick</p>
+  </footer>
+</div>

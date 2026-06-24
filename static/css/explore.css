@@ -1,0 +1,703 @@
+/* =============================================================================
+   CHATFLICK — EXPLORE / SEARCH DISCOVERY PAGE STYLES
+   File: static/css/explore.css
+   
+   Design tokens inherited from styles01.css (:root)
+   All new rules are namespaced under .cf-explore to avoid leaking into other pages.
+   ============================================================================= */
+
+/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+.cf-explore {
+  /* padding: 12px 0 24px; */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Search Bar ──────────────────────────────────────────────────────────── */
+.cf-search-wrap {
+  padding: 0 6px 6px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-top: 8px;
+  width: 98%;
+  border-radius: 50px;
+}
+
+.cf-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 46px;
+  background: var(--bg-stone-4, #c7c0b1);
+  border-radius: 999px;
+  border: 1px solid var(--border-light, rgba(70, 66, 59, .14));
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: text;
+}
+
+.cf-search-shell:focus-within {
+  box-shadow: 0 0 0 3px rgba(249, 72, 24, 0.14);
+  border-color: var(--primary, #F94818);
+  background: var(--bg-cream, #FBF3D1);
+}
+
+.cf-search-icon {
+  color: var(--text-ink, #46423b);
+  font-size: 15px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.cf-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: "Exo 2", sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-ink, #46423b);
+}
+
+.cf-search-input::placeholder {
+  color: var(--text-subtle, #8f8674);
+  font-weight: 400;
+}
+
+/* Remove browser default clear button */
+.cf-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.cf-search-clear {
+  background: transparent;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-subtle, #8f8674);
+  font-size: 13px;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cf-search-clear:hover {
+  background: rgba(249, 72, 24, 0.1);
+  color: var(--primary, #F94818);
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Section Container ───────────────────────────────────────────────────── */
+.cf-section {
+  padding: 10px 6px 4px;
+  border-bottom: 1px solid var(--border-light, rgba(70, 66, 59, .1));
+}
+
+.cf-section:last-of-type {
+  border-bottom: none;
+}
+
+/* ── Section Header ──────────────────────────────────────────────────────── */
+.cf-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cf-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle, #8f8674);
+}
+
+.cf-link-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary, #F94818);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.cf-link-btn:hover {
+  opacity: 0.75;
+  transform: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--primary, #F94818);
+}
+
+/* ── Recent Searches ─────────────────────────────────────────────────────── */
+.cf-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0px;
+  padding: 2px 0 0px;
+}
+
+.cf-recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  width: auto;
+  background: var(--bg-stone-1, #DEDED1);
+  border: 1px solid var(--border-light, rgba(70, 66, 59, .14));
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-ink, #46423b);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.cf-recent-chip:hover {
+  background: var(--bg-stone-4, #c7c0b1);
+  border-color: var(--border-color, #46423b);
+  color: var(--text-ink, #46423b);
+}
+
+.cf-recent-chip i {
+  font-size: 11px;
+  padding: 4px 2px 0;
+  color: var(--text-subtle, #8f8674);
+}
+
+.cf-recent-chip .cf-chip-remove {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0px 0px 2px 0px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: var(--text-subtle, #8f8674);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.cf-recent-chip .cf-chip-remove:hover {
+  background: rgba(249, 72, 24, .15);
+  color: var(--primary, #F94818);
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Account Cards ───────────────────────────────────────────────────────── */
+.cf-accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cf-account-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0px 8px;
+  border-radius: 14px;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.cf-account-card:hover {
+  background: var(--bg-stone-1, #DEDED1);
+}
+
+.cf-account-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--bg-stone-1, #DEDED1);
+}
+
+.cf-account-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-account-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-ink, #46423b);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-account-name .cf-pro-dot {
+  color: var(--primary, #F94818);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.cf-account-meta {
+  font-size: 12px;
+  color: var(--text-subtle, #8f8674);
+  font-weight: 500;
+}
+
+.cf-muted-row {
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-subtle, #8f8674);
+}
+
+.cf-follow-btn {
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #46423b);
+  background: var(--bg-stone-4, #c7c0b1);
+  color: var(--text-ink, #46423b);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+  width: 75px;
+  margin: 3% 2%;
+  padding: 10px;
+  font-weight: 500;
+}
+
+.cf-follow-btn:hover {
+  background: var(--text-ink, #46423b);
+  color: var(--bg-stone-1, #DEDED1);
+  transform: none;
+  box-shadow: none;
+}
+
+
+/* ── See More Button ─────────────────────────────────────────────────────── */
+.cf-see-more-btn {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color, #46423b);
+  background: transparent;
+  color: var(--text-subtle, #8f8674);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cf-see-more-btn:hover {
+  background: var(--bg-stone-1, #DEDED1);
+  color: var(--primary, #F94818);
+  border-color: var(--primary, #F94818);
+  transform: none;
+  box-shadow: none;
+}
+
+.cf-see-more-btn.is-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ── Trending Hashtags ───────────────────────────────────────────────────── */
+.cf-hashtags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 6px;
+}
+
+.cf-hashtag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(249, 72, 24, 0.1);
+  border: 1px solid rgba(249, 72, 24, 0.22);
+  color: var(--primary, #F94818);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 2% 0;
+  width: auto;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+
+.cf-hashtag-chip:hover {
+  background: rgba(249, 72, 24, 0.18);
+  border-color: var(--primary, #F94818);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(249, 72, 24, .18);
+  color: var(--primary, #F94818);
+}
+
+.cf-hashtag-count {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  background: rgba(249, 72, 24, .12);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+/* ── Trending Topics ─────────────────────────────────────────────────────── */
+.cf-topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cf-topic-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 2% 0;
+  border-radius: 14px;
+  background: var(--bg-stone-1, #DEDED1);
+  border: 1px solid var(--border-light, rgba(70, 66, 59, .12));
+  cursor: pointer;
+  text-decoration: none;
+  width: auto;
+}
+
+.cf-topic-item:hover {
+  transform: scale(1);
+  box-shadow: none;
+  background: var(--bg-stone-4, #c7c0b1);
+  border-color: var(--border-color, #46423b);
+}
+
+.cf-topic-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(249, 72, 24, .12);
+  color: var(--primary, #F94818);
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.cf-topic-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-topic-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-ink, #46423b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-topic-meta {
+  font-size: 11px;
+  color: var(--text-subtle, #8f8674);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.cf-topic-arrow {
+  color: var(--text-subtle, #8f8674);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Popular Posts ───────────────────────────────────────────────────────── */
+.cf-popular-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Compact post card for popular posts section */
+.cf-post-card {
+  padding: 12px 12px 10px;
+  border-radius: 16px;
+  background: var(--bg-stone-1, #DEDED1);
+  border: 1px solid var(--border-light, rgba(70, 66, 59, .12));
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cf-post-card:hover {
+  background: var(--bg-stone-4, #c7c0b1);
+  box-shadow: var(--shadow-sm);
+}
+
+.cf-post-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+
+.cf-post-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cf-post-author-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-ink, #46423b);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cf-post-author-handle {
+  font-size: 11px;
+  color: var(--primary, #F94818);
+  font-weight: 600;
+}
+
+.cf-post-content {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-ink, #46423b);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: pre-line;
+  margin-bottom: 8px;
+}
+
+.cf-post-stats {
+  display: flex;
+  gap: 14px;
+  justify-content: space-around;
+}
+
+.cf-post-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle, #8f8674);
+}
+
+.cf-post-stat i {
+  font-size: 12px;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+.cf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 44px 16px 28px;
+  gap: 8px;
+  text-align: center;
+}
+
+.cf-empty i {
+  font-size: 40px;
+  color: var(--text-subtle, #8f8674);
+  opacity: 0.35;
+  margin-bottom: 4px;
+}
+
+.cf-empty p {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-ink, #46423b);
+  margin: 0;
+}
+
+.cf-empty span {
+  font-size: 13px;
+  color: var(--text-subtle, #8f8674);
+  font-weight: 500;
+}
+
+/* ── Skeleton Loaders ────────────────────────────────────────────────────── */
+@keyframes cf-shimmer {
+  0% {
+    background-position: -300px 0;
+  }
+
+  100% {
+    background-position: 300px 0;
+  }
+}
+
+.cf-skeleton {
+  border-radius: 10px;
+  background: linear-gradient(90deg,
+      var(--bg-stone-1, #DEDED1) 25%,
+      var(--bg-stone-2, #C5C7BC) 50%,
+      var(--bg-stone-1, #DEDED1) 75%);
+  background-size: 600px 100%;
+  animation: cf-shimmer 1.4s ease-in-out infinite;
+}
+
+.cf-skeleton-account {
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+}
+
+.cf-skeleton-tag {
+  height: 34px;
+  width: 90px;
+  border-radius: 999px;
+}
+
+.cf-skeleton-topic {
+  height: 52px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+}
+
+.cf-skeleton-post {
+  height: 90px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.cf-explore-footer {
+  margin-top: 20px;
+  padding: 14px 8px 8px;
+  border-top: 1px solid var(--border-light, rgba(70, 66, 59, .1));
+}
+
+.cf-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.cf-footer-links a {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-subtle, #8f8674);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.cf-footer-links a:hover {
+  color: var(--primary, #F94818);
+}
+
+.cf-footer-copy {
+  font-size: 10px;
+  color: var(--text-subtle, #8f8674);
+  opacity: 0.7;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── Search results account list ─────────────────────────────────────────── */
+#cfResultPosts .post {
+  padding: 8px 4px;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes cf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cf-section {
+  animation: cf-fade-up 0.24s ease both;
+}
+
+.cf-section:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.cf-section:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.cf-section:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.cf-section:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.cf-section:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .cf-search-wrap {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .cf-section {
+    padding: 8px 2px 4px;
+  }
+
+  .cf-account-card {
+    padding: 8px 4px;
+  }
+
+  .cf-post-card {
+    padding: 10px 10px 8px;
+  }
+
+  .cf-explore-footer {
+    padding: 12px 4px 6px;
+  }
+}

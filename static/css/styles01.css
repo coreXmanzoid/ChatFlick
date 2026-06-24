@@ -338,7 +338,7 @@ body {
 button {
   background-color: var(--bg-stone-4);
   width: 100%;
-  margin: 5% 2%;
+  margin: 5% 0%;
   border-radius: var(--radius-pill);
   padding: 10px;
   font-weight: 500;
