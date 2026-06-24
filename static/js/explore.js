@@ -185,6 +185,17 @@
             runSearch(query);
         }
 
+        if (!window.ChatFlickExplore) {
+            window.ChatFlickExplore = {};
+        }
+        window.ChatFlickExplore.runSearch = runSearch;
+        window.ChatFlickExplore.runHashtagSearch = runHashtagSearch;
+        window.ChatFlickExplore.setQuery = function (query) {
+            if (els.input) {
+                els.input.value = query;
+            }
+        };
+
         function loadTrending() {
             if (state.trendingLoaded) {
                 return;

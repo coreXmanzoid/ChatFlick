@@ -232,8 +232,16 @@ function formatRelativeTime(timestamp) {
         const days = Math.floor(diffMins / 1440);
         return days === 1 ? "1d ago" : days + "d ago";
     }
-    const weeks = Math.floor(diffMins / 10080);
-    return weeks === 1 ? "1w ago" : weeks + "w ago";
+    if (diffMins < 43200) {
+        const weeks = Math.floor(diffMins / 10080);
+        return weeks === 1 ? "1w ago" : weeks + "w ago";
+    }
+    if (diffMins < 525600) {
+        const months = Math.floor(diffMins / 43200);
+        return months === 1 ? "1mo ago" : months + "mo ago";
+    }
+    const years = Math.floor(diffMins / 525600);
+    return years === 1 ? "1y ago" : years + "y ago";
 }
 
 function formatCompactRelativeTime(timestamp) {
@@ -1199,7 +1207,6 @@ function checkForNotifications(id) {
     });
 }
 
-exploreAccounts("/exploreAccounts/0/random");
 initializeDynamicContent($(document.body));
 ChatFlickNav.start();
 
@@ -1212,16 +1219,44 @@ $(".search input").on("input", function () {
     }
 });
 
-function runHashtagSearch(hashtag) {
-    const query = (hashtag || "").trim();
+function runHashtagSearch(tag) {
+    const clean = tag.trim();
+    const query = clean.startsWith("#") ? clean : "#" + clean;
+    const exploreApi = window.ChatFlickExplore;
 
-    if (!query.startsWith("#")) {
+    // Ensure Explore tab is visible
+    if (window.ChatFlickNav && typeof window.ChatFlickNav.navigate === "function") {
+        window.ChatFlickNav.navigate("/explore");
+    }
+
+    if (exploreApi && typeof exploreApi.runSearch === "function") {
+        if (typeof exploreApi.setQuery === "function") {
+            exploreApi.setQuery(query);
+        }
+        exploreApi.runSearch(query);
         return;
     }
 
-    showExploreView();
-    $(".search input").val(query);
-    exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+    // Poll for the explore API to become available (explore fragment may be loaded asynchronously)
+    let attempts = 0;
+    const maxAttempts = 30;
+    const iv = setInterval(function () {
+        const api = window.ChatFlickExplore;
+        if (api && typeof api.runSearch === "function") {
+            if (typeof api.setQuery === "function") {
+                api.setQuery(query);
+            }
+            api.runSearch(query);
+            clearInterval(iv);
+            return;
+        }
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+            clearInterval(iv);
+            // Final fallback: navigate to server-side explore with query parameter
+            window.location.href = "/explore?q=" + encodeURIComponent(query);
+        }
+    }, 100);
 }
 
 $(document).on("click", ".hashtag-link", function (e) {

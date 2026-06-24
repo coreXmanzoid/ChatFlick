@@ -115,11 +115,9 @@
                     {% endif %}
 
                     {% if user.get_setting("privacy-setting", 'show_bio') %}
-                    <small class="bio"><em><span class="pay-tag-dot"></span>{{ user.get_setting('profile-info', 'bio')
-                            }}</em></small>
+                    <small class="bio"><em><span class="pay-tag-dot"></span>{{ user.get_setting('profile-info', 'bio')}}</em></small>
                     <br>
                     {% endif %}
-
                     {% if user.get_setting('account-info', 'website') %}
                     <small>
                         <i class="bi bi-globe2"></i>

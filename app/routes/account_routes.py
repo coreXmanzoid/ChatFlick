@@ -53,18 +53,20 @@ def explore_accounts(id, state):
 
     elif state.strip().startswith("#"):
         posts = _search_posts_by_hashtag(state)
+        hashtag = _normalize_hashtag(state)
+        total_posts_with_hashtag = sum(
+            1
+            for post in posts
+            if any(str(tag).lower() == hashtag for tag in (post.hashtags or []))
+        )
+
         return render_template(
             "posts.html",
             posts=posts,
-            editable_post_ids={
-                post.id for post in posts if PostService.can_edit(post, current_user.id)
-            },
+            editable_post_ids={post.id for post in posts if PostService.can_edit(post, current_user.id)},
             utc_iso_from=utc_iso_from,
             reposts=None,
-            no_of_hashtags=[
-                (tag, sum(1 for post in posts if tag in post.hashtags))
-                for tag in set(tag for post in posts for tag in post.hashtags)
-            ],
+            no_of_hashtags=total_posts_with_hashtag,
             append_mode=False,
         )
 

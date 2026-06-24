@@ -338,7 +338,7 @@ body {
 button {
   background-color: var(--bg-stone-4);
   width: 100%;
-  margin: 5% 0%;
+  margin: 5% 2%;
   border-radius: var(--radius-pill);
   padding: 10px;
   font-weight: 500;
@@ -1276,7 +1276,7 @@ h5:hover {
   transition: var(--transition-slow);
 }
 
-.explore-tab .search input,
+/* .explore-tab .search input, */
 .profile-tab .search input,
 .ai-bar .search input {
   margin: 4px;

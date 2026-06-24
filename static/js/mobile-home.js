@@ -177,8 +177,16 @@ function formatRelativeTime(timestamp) {
         const days = Math.floor(diffMins / 1440);
         return days === 1 ? "1d ago" : days + "d ago";
     }
-    const weeks = Math.floor(diffMins / 10080);
-    return weeks === 1 ? "1w ago" : weeks + "w ago";
+    if (diffMins < 43200) {
+        const weeks = Math.floor(diffMins / 10080);
+        return weeks === 1 ? "1w ago" : weeks + "w ago";
+    }
+    if (diffMins < 525600) {
+        const months = Math.floor(diffMins / 43200);
+        return months === 1 ? "1mo ago" : months + "mo ago";
+    }
+    const years = Math.floor(diffMins / 525600);
+    return years === 1 ? "1y ago" : years + "y ago";
 }
 
 function formatCompactRelativeTime(timestamp) {
@@ -904,11 +912,13 @@ function exploreAccounts(url) {
 
 function showSearch() {
     resetOverlay();
+    mobileFeedState.active = false;
     setActiveTab("Search");
     setMoreMenuVisible(false);
     setAccountsRowVisible(false);
     $(".post-section").empty();
     $("#feed-post").empty();
+
     loadFragment(
         "mobileExplore",
         $("#feed-post"),
@@ -1614,7 +1624,21 @@ $(function () {
 
     $(document).on("input", ".search input", function () {
         const query = $(this).val().trim();
-        exploreAccounts(query ? "/exploreAccounts/0/" + encodeURIComponent(query) : "/exploreAccounts/0/random");
+        const exploreApi = window.ChatFlickExplore;
+
+        if (query) {
+            if (exploreApi && typeof exploreApi.runSearch === "function") {
+                showSearch();
+                if (typeof exploreApi.setQuery === "function") {
+                    exploreApi.setQuery(query);
+                }
+                exploreApi.runSearch(query);
+                return;
+            }
+            exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+        } else {
+            exploreAccounts("/exploreAccounts/0/random");
+        }
     });
 
     function runMobileHashtagSearch(hashtag) {
@@ -1624,9 +1648,36 @@ $(function () {
             return;
         }
 
+        // Ensure mobile Explore/Search view is visible
+        if (window.ChatFlickMobileNav && typeof window.ChatFlickMobileNav.navigate === "function") {
+            window.ChatFlickMobileNav.navigate("/explore");
+        }
+
         showSearch();
         $(".search input").val(query);
-        exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+
+        const exploreApi = window.ChatFlickExplore;
+        if (exploreApi && typeof exploreApi.runHashtagSearch === "function") {
+            exploreApi.runHashtagSearch(query);
+            return;
+        }
+
+        // Poll for explore API
+        let attempts = 0;
+        const maxAttempts = 30;
+        const iv = setInterval(function () {
+            const api = window.ChatFlickExplore;
+            if (api && typeof api.runHashtagSearch === "function") {
+                api.runHashtagSearch(query);
+                clearInterval(iv);
+                return;
+            }
+            attempts += 1;
+            if (attempts >= maxAttempts) {
+                clearInterval(iv);
+                exploreAccounts("/exploreAccounts/0/" + encodeURIComponent(query));
+            }
+        }, 120);
     }
 
     $(document).on("click", ".hashtag-link", function (e) {
